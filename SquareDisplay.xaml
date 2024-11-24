@@ -1,0 +1,54 @@
+﻿<UserControl x:Class="Chessie.SquareDisplay"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:model="clr-namespace:Chessie.Model"
+             mc:Ignorable="d" 
+             
+             d:DataContext="{d:DesignInstance model:SquareViewModel, IsDesignTimeCreatable=True}"
+             AllowDrop="True">
+    <Grid>
+        <Grid.Style>
+            <Style TargetType="Grid">
+                <Setter Property="Background" Value="LightGray"/>
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsDarkSquare}" Value="True">
+                        <Setter Property="Background" Value="DarkGray"/>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Grid.Style>
+
+        <Viewbox Stretch="Uniform" Panel.ZIndex="1">
+            <Label  Content="{Binding PieceSymbol}" Height="Auto" Width="{Binding ActualHeight, RelativeSource={RelativeSource Self}}" 
+                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                    FontFamily="DejaVu Sans" Padding="1"/>
+        </Viewbox>
+
+        <Grid>
+            <Grid.Style>
+                <Style TargetType="Grid">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                            <Setter Property="Opacity" Value="0.5"/>
+                            <Setter Property="Background" Value="LightGreen"/>
+                        </DataTrigger>
+                        
+                        <DataTrigger Binding="{Binding IsValidTarget}" Value="True">
+                            <Setter Property="Opacity" Value="0.5"/>
+                            <Setter Property="Background" Value="LightBlue"/>
+                        </DataTrigger>
+
+                        <DataTrigger Binding="{Binding IsInCheck}" Value="True">
+                            <Setter Property="Opacity" Value="0.5"/>
+                            <Setter Property="Background" Value="Red"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Grid.Style>
+        </Grid>
+            
+        <Label Panel.ZIndex="2" Content="{Binding SquareId}" FontSize="3" Padding="0" HorizontalAlignment="Left" VerticalAlignment="Top" />
+    </Grid>
+</UserControl>

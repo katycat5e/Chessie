@@ -1,0 +1,53 @@
+﻿<Window x:Class="Chessie.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Chessie"
+        xmlns:model="clr-namespace:Chessie.Model"
+        mc:Ignorable="d"
+        Title="Chessie" Height="450" Width="800"
+        DataContext="{Binding RelativeSource={RelativeSource Self}}">
+    <DockPanel LastChildFill="True">
+        <Menu DockPanel.Dock="Top">
+            <MenuItem Header="Game">
+                <MenuItem Header="New Game" Click="NewGame_Click"/>
+                <MenuItem Header="Import FEN" Click="ImportFEN_Click"/>
+            </MenuItem>
+        </Menu>
+        
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="3*"/>
+                <ColumnDefinition Width="1*"/>
+            </Grid.ColumnDefinitions>
+
+            <Viewbox Stretch="Uniform" Grid.Column="0">
+                <local:BoardDisplay x:Name="MainBoard" DataContext="{Binding BoardView}"
+                                d:DataContext="{d:DesignInstance model:BoardViewModel, IsDesignTimeCreatable=True}"
+                                SquareMousedown="MainBoard_SquareMousedown"
+                                SquareDrop="MainBoard_SquareDrop"/>
+            </Viewbox>
+
+            <GridSplitter Grid.Column="0" ResizeDirection="Columns" Width="5"/>
+
+            <StackPanel Grid.Column="1">
+                <Label Content="{Binding Game.TurnIndicator}" FontFamily="DejaVu Sans"/>
+
+                <ItemsControl DataContext="{Binding Game}" ItemsSource="{Binding PreviousMoves}" FontFamily="DejaVu Sans">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel MinWidth="100"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+
+                    <ItemsControl.ItemTemplate>
+                        <ItemContainerTemplate>
+                            <Label Content="{Binding PrettyAlgebraic}" Padding="5,0"/>
+                        </ItemContainerTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Grid>
+    </DockPanel>
+</Window>
