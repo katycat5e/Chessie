@@ -17,37 +17,77 @@
         </Menu>
         
         <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="3*"/>
+                <ColumnDefinition Width="1*"/>
                 <ColumnDefinition Width="1*"/>
             </Grid.ColumnDefinitions>
 
-            <Viewbox Stretch="Uniform" Grid.Column="0">
+            <Viewbox Stretch="Uniform" Grid.Row="0" Grid.Column="0" Grid.RowSpan="3">
                 <local:BoardDisplay x:Name="MainBoard" DataContext="{Binding BoardView}"
                                 d:DataContext="{d:DesignInstance model:BoardViewModel, IsDesignTimeCreatable=True}"
                                 SquareMousedown="MainBoard_SquareMousedown"
                                 SquareDrop="MainBoard_SquareDrop"/>
             </Viewbox>
 
-            <GridSplitter Grid.Column="0" ResizeDirection="Columns" Width="5"/>
+            <GridSplitter Grid.Column="0" Grid.RowSpan="3" ResizeDirection="Columns" Width="5"/>
+            <GridSplitter Grid.Column="2" Grid.ColumnSpan="3" Grid.Row="1" ResizeDirection="Rows" Height="5" HorizontalAlignment="Stretch"/>
 
-            <StackPanel Grid.Column="1">
-                <Label Content="{Binding Game.TurnIndicator}" FontFamily="DejaVu Sans"/>
+            <DockPanel Grid.Row="0" Grid.Column="2" LastChildFill="True">
+                <CheckBox DockPanel.Dock="Top" x:Name="WhiteCPUCheckbox" Content="Use AI for White" IsChecked="{Binding Game.WhiteIsCPU}"/>
+                <CheckBox DockPanel.Dock="Top" x:Name="BlackCPUCheckbox" Content="Use AI for Black" IsChecked="{Binding Game.BlackIsCPU}"/>
 
-                <ItemsControl DataContext="{Binding Game}" ItemsSource="{Binding PreviousMoves}" FontFamily="DejaVu Sans">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel MinWidth="100"/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
+                <Separator  DockPanel.Dock="Top"/>
+                <Label DockPanel.Dock="Top" Content="{Binding Game.TurnIndicator}" FontFamily="DejaVu Sans"/>
+                <Separator DockPanel.Dock="Top"/>
 
-                    <ItemsControl.ItemTemplate>
-                        <ItemContainerTemplate>
-                            <Label Content="{Binding PrettyAlgebraic}" Padding="5,0"/>
-                        </ItemContainerTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </StackPanel>
+                <ScrollViewer>
+                    <ItemsControl ItemsSource="{Binding Game.PreviousMoves}" FontFamily="DejaVu Sans">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel MinWidth="100"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+
+                        <ItemsControl.ItemTemplate>
+                            <ItemContainerTemplate>
+                                <Label Content="{Binding PrettyAlgebraic}" Padding="5,0"/>
+                            </ItemContainerTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </DockPanel>
+
+            <DockPanel Grid.Row="2" Grid.Column="2" LastChildFill="True">
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Top">
+                    <Label Content="AI Moves:" Padding="2"/>
+                    <Label Content="{Binding Game.AIThinkDuration}" Padding="2"/>
+                </StackPanel>
+
+                <Button x:Name="AIMoveButton" DockPanel.Dock="Bottom" Content="Make AI Move" Click="AIMoveButton_Click"
+                        IsEnabled="{Binding Game.IsAITurn}"/>
+
+                <ScrollViewer>
+                    <ItemsControl ItemsSource="{Binding Game.AIMoves}" FontFamily="DejaVu Sans">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel MinWidth="100"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+
+                        <ItemsControl.ItemTemplate>
+                            <ItemContainerTemplate>
+                                <Label Content="{Binding .}" Padding="5,0"/>
+                            </ItemContainerTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </DockPanel>
         </Grid>
     </DockPanel>
 </Window>

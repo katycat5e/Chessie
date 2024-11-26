@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Chessie.Model
@@ -77,7 +78,7 @@ namespace Chessie.Model
         All = AllWhite | AllBlack,
     }
 
-    public struct BoardState
+    public struct BoardState : IEnumerable<PieceType>
     {
         public PieceType[] Squares;
         public CastleState CastleState;
@@ -189,6 +190,16 @@ namespace Chessie.Model
             }
 
             return newState;
+        }
+
+        public readonly IEnumerator<PieceType> GetEnumerator()
+        {
+            return ((IEnumerable<PieceType>)Squares).GetEnumerator();
+        }
+
+        readonly IEnumerator IEnumerable.GetEnumerator()
+        {
+            return Squares.GetEnumerator();
         }
 
         private static readonly SquareCoord WQRookStart = new(0, 0);

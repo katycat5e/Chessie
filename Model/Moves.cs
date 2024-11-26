@@ -2,10 +2,9 @@
 
 namespace Chessie.Model
 {
-    using MoveDictionary = Dictionary<SquareCoord, Move>;
-
     public readonly struct Move
     {
+        public readonly PieceType Piece;
         public readonly SquareCoord Start;
         public readonly SquareCoord End;
         public readonly SquareCoord? CastlingRookStart;
@@ -24,16 +23,18 @@ namespace Chessie.Model
 
         public readonly int DeltaRank => End.Rank - Start.Rank;
 
-        public Move(SquareCoord start, SquareCoord end, SquareCoord? rook = null, bool enPassant = false)
+        public Move(PieceType piece, SquareCoord start, SquareCoord end, SquareCoord? rook = null, bool enPassant = false)
         {
+            Piece = piece;
             Start = start;
             End = end;
             CastlingRookStart = rook;
             EnPassant = enPassant;
         }
 
-        public Move(SquareCoord start, int dRank, int dFile, SquareCoord? rook = null, bool enPassant = false)
+        public Move(PieceType piece, SquareCoord start, int dRank, int dFile, SquareCoord? rook = null, bool enPassant = false)
         {
+            Piece = piece;
             Start = start;
             End = new(Start.Rank + dRank, Start.File + dFile);
             CastlingRookStart = rook;
@@ -42,7 +43,7 @@ namespace Chessie.Model
 
         public override string ToString()
         {
-            return $"{Start}→{End}";
+            return $"{Piece.TypeIcon()}{Start}→{End}";
         }
     }
 
@@ -67,7 +68,7 @@ namespace Chessie.Model
         public readonly string Algebraic { get; }
         public readonly string PrettyAlgebraic { get; }
 
-        public MoveRecord(BoardState board, Move move, MoveDictionary availableMoves, PieceType? promotion = null, bool isCheck = false, bool isMate = false)
+        public MoveRecord(BoardState board, Move move, IEnumerable<Move> availableMoves, PieceType? promotion = null, bool isCheck = false, bool isMate = false)
         {
             Piece = board[move.Start];
             Origin = move.Start;
@@ -123,10 +124,10 @@ namespace Chessie.Model
                 return;
             }
 
-            var ambiguousMoves = availableMoves.Where(kvp =>
-                    (kvp.Key == move.End) &&
-                    (kvp.Value.Start != move.Start) &&
-                    (board[kvp.Value.Start] == piece))
+            var ambiguousMoves = availableMoves.Where(m =>
+                    (m.End == move.End) &&
+                    (m.Start != move.Start) &&
+                    (m.Piece == piece))
                 .ToList();
 
             var sb = new StringBuilder();
@@ -142,11 +143,11 @@ namespace Chessie.Model
                 sb.Append(pieceChar.Value);
             }
 
-            if (ambiguousMoves.Any(kvp => kvp.Value.Start.Rank == move.Start.Rank))
+            if (ambiguousMoves.Any(m => m.Start.Rank == move.Start.Rank))
             {
                 sb.Append(move.Start.FileId);
             }
-            if (ambiguousMoves.Any(kvp => kvp.Value.Start.File == move.Start.File))
+            if (ambiguousMoves.Any(m => m.Start.File == move.Start.File))
             {
                 sb.Append(move.Start.RankId);
             }

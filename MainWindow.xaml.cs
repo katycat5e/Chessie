@@ -1,6 +1,7 @@
 ﻿using Chessie.Model;
 using System.Diagnostics;
 using System.Windows;
+using System.Windows.Input;
 
 namespace Chessie
 {
@@ -36,9 +37,12 @@ namespace Chessie
         {
             if (!Game.SelectedPiece.HasValue) return;
 
-            if (Game.AvailableMoves.ContainsKey(e.Coordinate))
+            var prevCursor = Cursor;
+            Cursor = Cursors.Wait;
+
+            if (Game.HumanMoves.ContainsKey(e.Coordinate))
             {
-                var move = Game.AvailableMoves[e.Coordinate];
+                var move = Game.HumanMoves[e.Coordinate];
                 var piece = Game.CurrentState[move.Start];
 
                 PieceType? promotion = null;
@@ -47,13 +51,15 @@ namespace Chessie
                     promotion = PromotionSelector.PromptPromotion(this, piece.GetColor());
                 }
 
-                Game.MakeMove(Game.AvailableMoves[e.Coordinate], promotion);
+                Game.MakeMove(Game.HumanMoves[e.Coordinate], promotion);
                 Game.SelectedPiece = null;
             }
             else if (e.Coordinate != Game.SelectedPiece.Value)
             {
                 Game.SelectedPiece = null;
             }
+
+            Cursor = prevCursor;
         }
 
         private void NewGame_Click(object sender, RoutedEventArgs e)
@@ -75,6 +81,14 @@ namespace Chessie
                 {
                     MessageBox.Show($"Error processing FEN code: \n{ex.Message}", "FEN Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
+            }
+        }
+
+        private void AIMoveButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (Game.IsAITurn)
+            {
+                Game.MakeAIMove();
             }
         }
     }
