@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows;
+﻿using System.Diagnostics;
 
 namespace Chessie.Model
 {
@@ -44,12 +38,12 @@ namespace Chessie.Model
             var piece = board[start];
             IEnumerable<Move> allMoves = piece.GetUncoloredType() switch
             {
-                PieceType.Pawn => GetValidPawnMoves(board, start),
-                PieceType.Knight => GetValidKnightMoves(board, start),
-                PieceType.Bishop => ProcessLinearMoves(board, start, _bishopVectors),
-                PieceType.Rook => ProcessLinearMoves(board, start, _rookVectors),
-                PieceType.Queen => ProcessLinearMoves(board, start, _allVectors),
-                PieceType.King => GetValidKingMoves(board, start),
+                PieceType.Pawn => GetValidPawnMoves(board, start, piece),
+                PieceType.Knight => GetValidKnightMoves(board, start, piece),
+                PieceType.Bishop => ProcessLinearMoves(board, start, _bishopVectors, piece),
+                PieceType.Rook => ProcessLinearMoves(board, start, _rookVectors, piece),
+                PieceType.Queen => ProcessLinearMoves(board, start, _allVectors, piece),
+                PieceType.King => GetValidKingMoves(board, start, piece),
                 _ => Enumerable.Empty<Move>(),
             };
 
@@ -58,14 +52,14 @@ namespace Chessie.Model
 
         #region Move Calculations
 
-        private static IEnumerable<Move> GetValidPawnMoves(BoardState board, SquareCoord start)
+        private static IEnumerable<Move> GetValidPawnMoves(BoardState board, SquareCoord start, PieceType piece)
         {
             int rankMovement = board.BlackToMove ? -1 : 1;
 
             var forwardSquare = new SquareCoord(start.Rank + rankMovement, start.File);
             if (board[forwardSquare] == PieceType.Empty)
             {
-                yield return new Move(start, forwardSquare);
+                yield return new Move(piece, start, forwardSquare);
             }
 
             // initial 2-square jump
@@ -75,23 +69,22 @@ namespace Chessie.Model
                 forwardSquare = new SquareCoord(start.Rank + rankMovement * 2, start.File);
                 if (board[forwardSquare] == PieceType.Empty)
                 {
-                    yield return new Move(start, forwardSquare);
+                    yield return new Move(piece, start, forwardSquare);
                 }
             }
 
             // captures
-            var piece = board[start];
             if (!start.IsInFirstFile)
             {
                 var target = new SquareCoord(start.Rank + rankMovement, start.File - 1);
                 
                 if (piece.IsOpponentPiece(board[target]))
                 {
-                    yield return new Move(start, rankMovement, -1);
+                    yield return new Move(piece, start, rankMovement, -1);
                 }
                 else if (board.EnPassantSquare == target)
                 {
-                    yield return new Move(start, rankMovement, -1, enPassant: true);
+                    yield return new Move(piece, start, rankMovement, -1, enPassant: true);
                 }
             }
 
@@ -101,16 +94,16 @@ namespace Chessie.Model
 
                 if (piece.IsOpponentPiece(board[target]))
                 {
-                    yield return new Move(start, rankMovement, 1);
+                    yield return new Move(piece, start, rankMovement, 1);
                 }
                 else if (board.EnPassantSquare == target)
                 {
-                    yield return new Move(start, rankMovement, 1, enPassant: true);
+                    yield return new Move(piece, start, rankMovement, 1, enPassant: true);
                 }
             }
         }
 
-        private static IEnumerable<Move> GetValidKnightMoves(BoardState board, SquareCoord start)
+        private static IEnumerable<Move> GetValidKnightMoves(BoardState board, SquareCoord start, PieceType piece)
         {
             foreach (var move in _knightMoves)
             {
@@ -120,7 +113,7 @@ namespace Chessie.Model
                     var target = board[dest];
                     if ((target == PieceType.Empty) || board[start].IsOpponentPiece(target))
                     {
-                        yield return new Move(start, dest);
+                        yield return new Move(piece, start, dest);
                     }
                 }
             }
@@ -150,38 +143,38 @@ namespace Chessie.Model
             new(1, 1), new(1, -1), new(-1, 1), new(-1, -1),
         };
 
-        private static IEnumerable<Move> GetValidKingMoves(BoardState board, SquareCoord start)
+        private static IEnumerable<Move> GetValidKingMoves(BoardState board, SquareCoord start, PieceType piece)
         {
             foreach (var move in _allVectors)
             {
                 var dest = start + move;
-                if (!dest.IsValidSquare) break;
+                if (!dest.IsValidSquare) continue;
 
                 var target = board[dest];
                 if (target == PieceType.Empty || board[start].IsOpponentPiece(target))
                 {
-                    yield return new Move(start, dest);
+                    yield return new Move(piece, start, dest);
                 }
             }
         }
 
-        private static IEnumerable<Move> ProcessLinearMoves(BoardState board, SquareCoord start, IEnumerable<SquareCoord> vectors)
+        private static IEnumerable<Move> ProcessLinearMoves(BoardState board, SquareCoord start, IEnumerable<SquareCoord> vectors, PieceType piece)
         {
             foreach (var vector in vectors)
             {
                 for (int offset = 1; offset <= 7; offset++)
                 {
                     var dest = start + (vector * offset);
-                    if (!dest.IsValidSquare) break;
+                    if (!dest.IsValidSquare) continue;
 
                     var target = board[dest];
                     if (target == PieceType.Empty)
                     {
-                        yield return new Move(start, dest);
+                        yield return new Move(piece, start, dest);
                     }
                     else if (board[start].IsOpponentPiece(target))
                     {
-                        yield return new Move(start, dest);
+                        yield return new Move(piece, start, dest);
                         break;
                     }
                     else break;

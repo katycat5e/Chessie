@@ -77,7 +77,7 @@ namespace Chessie.Model
                     var currentSquare = Squares[rank][file];
                     var coord = new SquareCoord(rank, file);
 
-                    if ((_game.AvailableMoves.Count > 0) && _game.AvailableMoves.ContainsKey(coord))
+                    if ((_game.HumanMoves.Count > 0) && _game.HumanMoves.ContainsKey(coord))
                     {
                         currentSquare.IsValidTarget = true;
                     }
