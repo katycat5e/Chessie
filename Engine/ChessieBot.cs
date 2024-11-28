@@ -5,15 +5,17 @@ namespace Chessie.Engine
 {
     public static class ChessieBot
     {
-        const int SEARCH_DEPTH = 1;
+        const int SEARCH_DEPTH = 3;
 
         const int MAX = 999999;
         const int MIN = -MAX;
 
         public static float LastThinkDuration { get; private set; }
+        public static int StatesEvaluated { get; private set; }
 
         public static List<RankedMove> RankPotentialMoves(BoardState board)
         {
+            StatesEvaluated = 0;
             var watch = Stopwatch.StartNew();
 
             var nextMoves = BoardCalculator.GetAllValidMoves(board, board.BlackToMove);
@@ -22,27 +24,38 @@ namespace Chessie.Engine
             foreach (var move in nextMoves)
             {
                 var result = board.ApplyMove(move);
-                int bestEval = -Search(result, SEARCH_DEPTH, MAX, MIN, out string seq);// + Random.Shared.Next(-5, 5);
+                int bestEval = Search(result, SEARCH_DEPTH, board.BlackToMove, MAX, MIN, out string seq);// + Random.Shared.Next(-5, 5);
                 sortedMoves.Add(new RankedMove(bestEval, move, seq));
             }
 
-            static int CompareMoves(RankedMove a, RankedMove b)
+            static int ReverseSorter(RankedMove a, RankedMove b)
             {
                 return b.CompareTo(a);
             }
 
-            sortedMoves.Sort(CompareMoves);
+            if (board.BlackToMove)
+            {
+                sortedMoves.Sort();
+            }
+            else
+            {
+                sortedMoves.Sort(ReverseSorter);
+            }
 
             watch.Stop();
             LastThinkDuration = watch.ElapsedMilliseconds / 1000f;
 
+            string player = board.BlackToMove ? "black" : "white";
+            Trace.WriteLine($"{StatesEvaluated} states evaluated for {player}");
+
             return sortedMoves;
         }
 
-        private static int Search(BoardState board, int depthLimit, int alpha, int beta, out string moveSeq)
+        private static int Search(BoardState board, int depthLimit, bool maximizing, int minimumMaximizer, int maximumMinimizer, out string moveSeq)
         {
             if (depthLimit == 0)
             {
+                StatesEvaluated++;
                 moveSeq = string.Empty;
                 return Evaluate(board);
             }
@@ -51,37 +64,70 @@ namespace Chessie.Engine
             moveSeq = string.Empty;
             var nextMoves = BoardCalculator.GetAllValidMoves(board, board.BlackToMove);
 
-            foreach (var move in nextMoves)
-            {
-                var result = board.ApplyMove(move);
-                int lookaheadEval = -Search(result, depthLimit - 1, -beta, -alpha, out string nextSeq);
+            int bestEval;
+            Move bestMove = new();
+            string bestSeq = string.Empty;
 
-                if (lookaheadEval >= beta)
+            if (maximizing)
+            {
+                bestEval = MIN;
+
+                foreach (var move in nextMoves)
                 {
-                    return beta;
+                    var nextBoard = board.ApplyMove(move);
+
+                    int bestMoveResult = Search(nextBoard, depthLimit - 1, !maximizing, minimumMaximizer, maximumMinimizer, out string nextSeq);
+
+                    if (bestMoveResult > bestEval)
+                    {
+                        bestEval = bestMoveResult;
+                        bestMove = move;
+                        bestSeq = nextSeq;
+                    }
+
+                    if (bestEval > minimumMaximizer) break;
+
+                    maximumMinimizer = Math.Max(maximumMinimizer, bestEval);
                 }
-                //alpha = Math.Max(alpha, lookaheadEval);
-                if (lookaheadEval > alpha)
+            }
+            else
+            {
+                bestEval = MAX;
+
+                foreach (var move in nextMoves)
                 {
-                    alpha = lookaheadEval;
-                    moveSeq = move.ToString() + ',' + nextSeq;
+                    var nextBoard = board.ApplyMove(move);
+
+                    int bestMoveResult = Search(nextBoard, depthLimit - 1, !maximizing, minimumMaximizer, maximumMinimizer, out string nextSeq);
+
+                    if (bestMoveResult < bestEval)
+                    {
+                        bestEval = bestMoveResult;
+                        bestMove = move;
+                        bestSeq = nextSeq;
+                    }
+
+                    if (bestEval < maximumMinimizer) break;
+
+                    minimumMaximizer = Math.Min(minimumMaximizer, bestEval);
                 }
             }
 
-            //return best;
-            return alpha;
+            moveSeq = bestMove.ToString() + bestSeq;
+            return bestEval;
         }
 
         public static int Evaluate(BoardState board)
         {
             int eval = MaterialEval(board);
+            eval += PST_Eval(board);
 
             if (BoardCalculator.IsMate(board, board.BlackToMove))
             {
-                return EvalSignAdjust(-MATE_PENALTY, board.BlackToMove);
+                return board.BlackToMove ? MATE_PENALTY : -MATE_PENALTY;
             }
 
-            return EvalSignAdjust(eval, board.BlackToMove);
+            return eval;
         }
 
         private static int EvalSignAdjust(int eval, bool forBlack)
@@ -131,6 +177,7 @@ namespace Chessie.Engine
             };
         }
 
+        // returns white's position advantage
         private static int PST_Eval(BoardState board)
         {
             int eval = 0;
@@ -143,9 +190,11 @@ namespace Chessie.Engine
                 }
                 else if (piece.IsBlackPiece())
                 {
-
+                    eval -= PieceSquareTables.Evaluate(piece, square);
                 }
             }
+
+            return eval;
         }
     }
 
