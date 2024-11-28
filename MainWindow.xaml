@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Chessie"
-        xmlns:model="clr-namespace:Chessie.Model"
+        xmlns:model="clr-namespace:Chessie.ViewModels"
         mc:Ignorable="d"
         Title="Chessie" Height="450" Width="800"
         DataContext="{Binding RelativeSource={RelativeSource Self}}">

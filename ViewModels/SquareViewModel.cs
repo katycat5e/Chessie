@@ -1,6 +1,7 @@
-﻿using System.Windows;
+﻿using Chessie.Model;
+using System.Windows;
 
-namespace Chessie.Model
+namespace Chessie.ViewModels
 {
     public class SquareViewModel : DependencyObject
     {

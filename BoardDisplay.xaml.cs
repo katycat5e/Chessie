@@ -1,4 +1,5 @@
 ﻿using Chessie.Model;
+using Chessie.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Linq;

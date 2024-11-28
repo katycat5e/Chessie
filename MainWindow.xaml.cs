@@ -1,4 +1,5 @@
 ﻿using Chessie.Model;
+using Chessie.ViewModels;
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Input;

@@ -1,7 +1,7 @@
-﻿using System.ComponentModel;
+﻿using Chessie.Model;
 using System.Windows;
 
-namespace Chessie.Model
+namespace Chessie.ViewModels
 {
     public class BoardViewModel : DependencyObject
     {
@@ -77,7 +77,7 @@ namespace Chessie.Model
                     var currentSquare = Squares[rank][file];
                     var coord = new SquareCoord(rank, file);
 
-                    if ((_game.HumanMoves.Count > 0) && _game.HumanMoves.ContainsKey(coord))
+                    if (_game.HumanMoves.Count > 0 && _game.HumanMoves.ContainsKey(coord))
                     {
                         currentSquare.IsValidTarget = true;
                     }
@@ -86,8 +86,8 @@ namespace Chessie.Model
                         currentSquare.IsValidTarget = false;
                     }
 
-                    currentSquare.IsSelected = (coord == _game.SelectedPiece);
-                    currentSquare.IsInCheck = (_game.CheckLocation.HasValue && (coord == _game.CheckLocation));
+                    currentSquare.IsSelected = coord == _game.SelectedPiece;
+                    currentSquare.IsInCheck = _game.CheckLocation.HasValue && coord == _game.CheckLocation;
                 }
             }
         }
