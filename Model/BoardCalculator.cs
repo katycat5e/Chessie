@@ -1,28 +1,30 @@
-﻿using System.Diagnostics;
-
-namespace Chessie.Model
+﻿namespace Chessie.Model
 {
     public static class BoardCalculator
     {
-        public static IEnumerable<Move> GetAllValidMoves(BoardState board, bool forBlack)
+        private const int MIN_COORD = 0;
+        private const int MAX_COORD = 7;
+
+        private const int UP = 8;
+        private const int DOWN = -8;
+        private const int LEFT = -1;
+        private const int RIGHT = 1;
+
+        public static IEnumerable<Move> GetAllValidMoves(Board board, bool forBlack)
         {
-            foreach (var square in SquareCoord.AllSquares)
+            foreach (var piece in board.EnumeratePieces(forBlack))
             {
-                var piece = board[square];
-                if (piece.IsOwnPiece(forBlack))
+                var potentialMoves = GetValidMovesForPiece(board, piece);
+                foreach (var move in potentialMoves)
                 {
-                    var potentialMoves = GetValidMovesForPiece(board, square);
-                    foreach (var move in potentialMoves)
-                    {
-                        yield return move;
-                    }
+                    yield return move;
                 }
             }
         }
 
-        public static IEnumerable<Move> GetValidMovesForPiece(BoardState board, SquareCoord start)
+        public static IEnumerable<Move> GetValidMovesForPiece(Board board, LocatedPiece piece)
         {
-            var allMoves = GetPotentialMovesForPiece(board, start).ToList();
+            var allMoves = GetPotentialMovesForPiece(board, piece).ToList();
 
             foreach (var move in allMoves)
             {
@@ -33,17 +35,16 @@ namespace Chessie.Model
             }
         }
 
-        public static IEnumerable<Move> GetPotentialMovesForPiece(BoardState board, SquareCoord start)
+        public static IEnumerable<Move> GetPotentialMovesForPiece(Board board, LocatedPiece piece)
         {
-            var piece = board[start];
-            IEnumerable<Move> allMoves = piece.GetUncoloredType() switch
+            IEnumerable<Move> allMoves = piece.Piece.GetUncoloredType() switch
             {
-                PieceType.Pawn => GetValidPawnMoves(board, start, piece),
-                PieceType.Knight => GetValidKnightMoves(board, start, piece),
-                PieceType.Bishop => ProcessLinearMoves(board, start, _bishopVectors, piece),
-                PieceType.Rook => ProcessLinearMoves(board, start, _rookVectors, piece),
-                PieceType.Queen => ProcessLinearMoves(board, start, _allVectors, piece),
-                PieceType.King => GetValidKingMoves(board, start, piece),
+                PieceType.Pawn => GetValidPawnMoves(board, piece),
+                PieceType.Knight => GetValidKnightMoves(board, piece),
+                PieceType.Bishop => ProcessLinearMoves(board, piece, _bishopVectors),
+                PieceType.Rook => ProcessLinearMoves(board, piece, _rookVectors),
+                PieceType.Queen => ProcessLinearMoves(board, piece, _allVectors),
+                PieceType.King => GetValidKingMoves(board, piece),
                 _ => Enumerable.Empty<Move>(),
             };
 
@@ -52,132 +53,160 @@ namespace Chessie.Model
 
         #region Move Calculations
 
-        private static IEnumerable<Move> GetValidPawnMoves(BoardState board, SquareCoord start, PieceType piece)
+        private static IEnumerable<Move> GetValidPawnMoves(Board board, LocatedPiece piece)
         {
-            int rankMovement = board.BlackToMove ? -1 : 1;
+            int rankMovement = board.BlackToMove ? DOWN : UP;
 
-            var forwardSquare = new SquareCoord(start.Rank + rankMovement, start.File);
+            var forwardSquare = piece.Location + rankMovement;
             if (board[forwardSquare] == PieceType.Empty)
             {
-                yield return new Move(piece, start, forwardSquare);
+                yield return new Move(piece.Piece, PieceType.Empty, piece.Location, forwardSquare);
             }
 
             // initial 2-square jump
-            int initialRank = board.BlackToMove ? SquareCoord.MAX_RANK - 1 : SquareCoord.MIN_RANK + 1;
-            if (start.Rank == initialRank)
+            int initialRank = board.BlackToMove ? MAX_COORD - 1 : MIN_COORD + 1;
+            if (piece.Rank == initialRank)
             {
-                forwardSquare = new SquareCoord(start.Rank + rankMovement * 2, start.File);
+                forwardSquare = piece.Location + rankMovement * 2;
                 if (board[forwardSquare] == PieceType.Empty)
                 {
-                    yield return new Move(piece, start, forwardSquare);
+                    yield return new Move(piece.Piece, PieceType.Empty, piece.Location, forwardSquare);
                 }
             }
 
             // captures
-            if (!start.IsInFirstFile)
+            if (piece.File != MIN_COORD)
             {
-                var target = new SquareCoord(start.Rank + rankMovement, start.File - 1);
+                int target = piece.Location + rankMovement + LEFT;
                 
-                if (piece.IsOpponentPiece(board[target]))
+                if (piece.Piece.IsOpponentPiece(board[target]))
                 {
-                    yield return new Move(piece, start, rankMovement, -1);
+                    yield return new Move(piece.Piece, board[target], piece.Location, target);
                 }
                 else if (board.EnPassantSquare == target)
                 {
-                    yield return new Move(piece, start, rankMovement, -1, enPassant: true);
+                    yield return new Move(piece.Piece, PieceType.Empty, piece.Location, target, enPassant: true);
                 }
             }
 
-            if (!start.IsInLastFile)
+            if (piece.File != MAX_COORD)
             {
-                var target = new SquareCoord(start.Rank + rankMovement, start.File + 1);
+                int target = piece.Location + rankMovement + RIGHT;
 
-                if (piece.IsOpponentPiece(board[target]))
+                if (piece.Piece.IsOpponentPiece(board[target]))
                 {
-                    yield return new Move(piece, start, rankMovement, 1);
+                    yield return new Move(piece.Piece, board[target], piece.Location, target);
                 }
                 else if (board.EnPassantSquare == target)
                 {
-                    yield return new Move(piece, start, rankMovement, 1, enPassant: true);
+                    yield return new Move(piece.Piece, PieceType.Empty, piece.Location, target, enPassant: true);
                 }
             }
         }
 
-        private static IEnumerable<Move> GetValidKnightMoves(BoardState board, SquareCoord start, PieceType piece)
+        private static IEnumerable<Move> GetValidKnightMoves(Board board, LocatedPiece piece)
         {
             foreach (var move in _knightMoves)
             {
-                var dest = start + move;
-                if (dest.IsValidSquare)
+                int dRank = move >> 3;
+                int dFile = move & 7;
+
+                if ((piece.Rank + dRank > MAX_COORD) ||
+                    (piece.Rank + dRank < MIN_COORD) ||
+                    (piece.File + dFile > MAX_COORD) ||
+                    (piece.File + dFile < MIN_COORD))
                 {
-                    var target = board[dest];
-                    if ((target == PieceType.Empty) || board[start].IsOpponentPiece(target))
-                    {
-                        yield return new Move(piece, start, dest);
-                    }
+                    continue;
+                }
+
+                var dest = piece.Location + move;
+                var target = board[dest];
+                if ((target == PieceType.Empty) || piece.Piece.IsOpponentPiece(target))
+                {
+                    yield return new Move(piece.Piece, target, piece.Location, dest);
                 }
             }
         }
 
-        private static readonly SquareCoord[] _knightMoves =
+        private static readonly int[] _knightMoves =
+            new (int, int)[]
         {
-            new(1, 2),  new(-1, 2),
-            new(1, -2), new(-1, -2),
-            new(2, 1),  new(-2, 1),
-            new(2, -1), new(-2, -1),
+            (1, 2),  (-1, 2),
+            (1, -2), (-1, -2),
+            (2, 1),  (-2, 1),
+            (2, -1), (-2, -1),
+        }
+        .Select(rf => rf.Item1 * 8 + rf.Item2).ToArray();
+
+        private static readonly int[] _bishopVectors =
+        {
+            UP + RIGHT, DOWN + RIGHT, DOWN + LEFT, UP + LEFT,
         };
 
-        private static readonly SquareCoord[] _bishopVectors =
+        private static readonly int[] _rookVectors =
         {
-            new(1, 1), new(1, -1), new(-1, 1), new(-1, -1),
+            UP, RIGHT, DOWN, LEFT,
         };
 
-        private static readonly SquareCoord[] _rookVectors =
-        {
-            new(1, 0), new(0, 1), new(-1, 0), new(0, -1),
-        };
+        private static readonly int[] _allVectors = _bishopVectors.Concat(_rookVectors).ToArray();
 
-        private static readonly SquareCoord[] _allVectors =
-        {
-            new(1, 0), new(0, 1), new(-1, 0), new(0, -1),
-            new(1, 1), new(1, -1), new(-1, 1), new(-1, -1),
-        };
-
-        private static IEnumerable<Move> GetValidKingMoves(BoardState board, SquareCoord start, PieceType piece)
+        private static IEnumerable<Move> GetValidKingMoves(Board board, LocatedPiece piece)
         {
             foreach (var move in _allVectors)
             {
-                var dest = start + move;
-                if (!dest.IsValidSquare) continue;
+                int dRank = move >> 3;
+                int dFile = move & 7;
 
-                var target = board[dest];
-                if (target == PieceType.Empty || board[start].IsOpponentPiece(target))
+                if ((piece.Rank + dRank > MAX_COORD) ||
+                    (piece.Rank + dRank < MIN_COORD) ||
+                    (piece.File + dFile > MAX_COORD) ||
+                    (piece.File + dFile < MIN_COORD))
                 {
-                    yield return new Move(piece, start, dest);
+                    continue;
+                }
+
+                int dest = piece.Location + move;
+                var target = board[dest];
+                if (target == PieceType.Empty || piece.Piece.IsOpponentPiece(target))
+                {
+                    yield return new Move(piece.Piece, target, piece.Location, dest);
                 }
             }
         }
 
-        private static IEnumerable<Move> ProcessLinearMoves(BoardState board, SquareCoord start, IEnumerable<SquareCoord> vectors, PieceType piece)
+        private static IEnumerable<Move> ProcessLinearMoves(Board board, LocatedPiece piece, IEnumerable<int> vectors)
         {
             foreach (var vector in vectors)
             {
+                int move = vector;
+
                 for (int offset = 1; offset <= 7; offset++)
                 {
-                    var dest = start + (vector * offset);
-                    if (!dest.IsValidSquare) continue;
+                    int dRank = move >> 3;
+                    int dFile = move & 7;
 
+                    if ((piece.Rank + dRank > MAX_COORD) ||
+                        (piece.Rank + dRank < MIN_COORD) ||
+                        (piece.File + dFile > MAX_COORD) ||
+                        (piece.File + dFile < MIN_COORD))
+                    {
+                        continue;
+                    }
+
+                    int dest = piece.Location + move;
                     var target = board[dest];
                     if (target == PieceType.Empty)
                     {
-                        yield return new Move(piece, start, dest);
+                        yield return new Move(piece, target, dest);
                     }
-                    else if (board[start].IsOpponentPiece(target))
+                    else if (piece.Piece.IsOpponentPiece(target))
                     {
-                        yield return new Move(piece, start, dest);
+                        yield return new Move(piece, target, dest);
                         break;
                     }
                     else break;
+
+                    move += vector;
                 }
             }
         }
@@ -185,27 +214,25 @@ namespace Chessie.Model
         #endregion
 
 
-        private static bool DoesMoveCauseCheck(BoardState board, Move move, bool forBlack)
+        private static bool DoesMoveCauseCheck(Board board, Move move, bool forBlack)
         {
-            var moveResult = board.ApplyMove(move);
-            return IsCheck(moveResult, forBlack, out _);
+            board.ApplyMove(move);
+            bool isCheck = IsCheck(board, forBlack, out _);
+            board.UndoLastMove();
+            return isCheck;
         }
 
-        public static bool IsCheck(BoardState board, bool forBlack, out SquareCoord? checkLocation)
+        public static bool IsCheck(Board board, bool forBlack, out int? checkLocation)
         {
-            var kingLocation = board.GetKingPosition(forBlack);
+            var kingLocation = board.GetMap(forBlack).King;
 
-            foreach (var square in SquareCoord.AllSquares)
+            foreach (var piece in board.GetOpponentMap(forBlack))
             {
-                var piece = board[square];
-                if (piece.IsOpponentPiece(forBlack))
+                var potentialMoves = GetPotentialMovesForPiece(board, piece);
+                if (potentialMoves.Any(move => move.End == kingLocation))
                 {
-                    var potentialMoves = GetPotentialMovesForPiece(board, square);
-                    if (potentialMoves.Any(move => move.End == kingLocation))
-                    {
-                        checkLocation = kingLocation;
-                        return true;
-                    }
+                    checkLocation = kingLocation;
+                    return true;
                 }
             }
 
@@ -213,7 +240,7 @@ namespace Chessie.Model
             return false;
         }
 
-        public static bool IsMate(BoardState board, bool forBlack)
+        public static bool IsMate(Board board, bool forBlack)
         {
             return !GetAllValidMoves(board, forBlack).Any();
         }

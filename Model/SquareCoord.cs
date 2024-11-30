@@ -32,6 +32,12 @@ namespace Chessie.Model
             File = file;
         }
 
+        public SquareCoord(int squareIndex)
+        {
+            Rank = squareIndex >> 3;
+            File = squareIndex & 0b111;
+        }
+
         public static bool operator ==(SquareCoord left, SquareCoord right) => (left.Rank == right.Rank) && (left.File == right.File);
         public static bool operator !=(SquareCoord left, SquareCoord right) => (left.Rank != right.Rank) || (left.File != right.File);
 

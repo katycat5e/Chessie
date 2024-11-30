@@ -4,42 +4,60 @@ namespace Chessie.Model
 {
     public readonly struct Move
     {
+        private const int FILES_PER_RANK = 8;
+
         public readonly PieceType Piece;
-        public readonly SquareCoord Start;
-        public readonly SquareCoord End;
-        public readonly SquareCoord? CastlingRookStart;
+        public readonly PieceType CapturedPiece;
+        public readonly int Start;
+        public readonly int End;
+        public readonly int? CastlingRookStart;
         public readonly bool EnPassant;
 
-        public readonly SquareCoord CastlingRookEnd
+        public readonly SquareCoord StartCoord => new(Start);
+        public readonly SquareCoord EndCoord => new(End);
+
+        public readonly int CastlingRookEnd
         {
             get
             {
-                int kingDir = Math.Sign(End.File - Start.File);
-                return new SquareCoord(End.Rank, End.File - kingDir);
+                int kingDir = Math.Sign(End - Start);
+                return End - kingDir;
             }
         }
 
-        public readonly SquareCoord EnPassantCapture => new(End.Rank - 1, End.File);
+        public readonly int EnPassantCapture => (End > Start) ? (End - FILES_PER_RANK) : (End + FILES_PER_RANK);
 
-        public readonly int DeltaRank => End.Rank - Start.Rank;
+        public readonly bool IsPawnDoubleMove => Piece.IsPieceType(PieceType.Pawn) && (Math.Abs(End - Start) == (FILES_PER_RANK * 2));
 
-        public Move(PieceType piece, SquareCoord start, SquareCoord end, SquareCoord? rook = null, bool enPassant = false)
+        public Move(PieceType piece, PieceType targetPiece, int startIndex, int endIndex, int? rook = null, bool enPassant = false)
         {
             Piece = piece;
-            Start = start;
-            End = end;
+            CapturedPiece = targetPiece;
+            Start = startIndex;
+            End = endIndex;
             CastlingRookStart = rook;
             EnPassant = enPassant;
         }
 
-        public Move(PieceType piece, SquareCoord start, int dRank, int dFile, SquareCoord? rook = null, bool enPassant = false)
-        {
-            Piece = piece;
-            Start = start;
-            End = new(Start.Rank + dRank, Start.File + dFile);
-            CastlingRookStart = rook;
-            EnPassant = enPassant;
-        }
+        public Move(LocatedPiece piece, PieceType targetPiece, int endIndex, int? rook = null, bool enPassant = false)
+            : this(piece.Piece, targetPiece, piece.Location, endIndex, rook, enPassant)
+        { }
+
+        public Move(PieceType piece, PieceType targetPiece, SquareCoord start, SquareCoord end, SquareCoord? rook = null, bool enPassant = false)
+            : this(piece, targetPiece,
+                  Board.SquareIndex(start),
+                  Board.SquareIndex(end),
+                  Board.SquareIndex(rook),
+                  enPassant)
+        { }
+
+        public Move(PieceType piece, PieceType targetPiece, SquareCoord start, int dRank, int dFile, SquareCoord? rook = null, bool enPassant = false)
+            : this(piece, targetPiece,
+                  Board.SquareIndex(start),
+                  Board.SquareIndex(start) + (dRank * FILES_PER_RANK) + dFile,
+                  Board.SquareIndex(rook),
+                  enPassant)
+        { }
 
         public override string ToString()
         {
