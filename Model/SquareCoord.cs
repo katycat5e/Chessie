@@ -13,6 +13,8 @@ namespace Chessie.Model
         public readonly int Rank;
         public readonly int File;
 
+        public readonly int Index => (Rank << 3) | File;
+
         public readonly bool IsInFirstRank => Rank == MIN_RANK;
         public readonly bool IsInLastRank => Rank == MAX_RANK;
 
@@ -28,6 +30,9 @@ namespace Chessie.Model
 
         public SquareCoord(int rank, int file)
         {
+            if ((rank < MIN_RANK) || (rank > MAX_RANK)) throw new ArgumentOutOfRangeException(nameof(rank));
+            if ((file < MIN_FILE) || (file > MAX_FILE)) throw new ArgumentOutOfRangeException(nameof(file));
+
             Rank = rank;
             File = file;
         }
@@ -40,11 +45,6 @@ namespace Chessie.Model
 
         public static bool operator ==(SquareCoord left, SquareCoord right) => (left.Rank == right.Rank) && (left.File == right.File);
         public static bool operator !=(SquareCoord left, SquareCoord right) => (left.Rank != right.Rank) || (left.File != right.File);
-
-        public static SquareCoord operator +(SquareCoord left, SquareCoord right) => new(left.Rank + right.Rank, left.File + right.File);
-        public static SquareCoord operator -(SquareCoord left, SquareCoord right) => new(left.Rank - right.Rank, left.File - right.File);
-
-        public static SquareCoord operator *(SquareCoord coord, int multiplier) => new(coord.Rank * multiplier, coord.File * multiplier);
 
         public override bool Equals([NotNullWhen(true)] object? obj)
         {

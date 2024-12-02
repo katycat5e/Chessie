@@ -104,6 +104,28 @@ namespace Chessie.Model
             };
         }
 
+        public static char FenId(this PieceType piece)
+        {
+            return piece switch
+            {
+                P => 'P',
+                N => 'N',
+                B => 'B',
+                R => 'R',
+                Q => 'Q',
+                K => 'K',
+
+                p => 'p',
+                n => 'n',
+                b => 'b',
+                r => 'r',
+                q => 'q',
+                k => 'k',
+
+                _ => '-',
+            };
+        }
+
         public static char TypeIcon(this PieceType piece)
         {
             if (piece.IsWhitePiece())
@@ -128,6 +150,7 @@ namespace Chessie.Model
                 PieceType.Rook => '♜',
                 PieceType.Queen => '♛',
                 PieceType.King => '♚',
+                PieceType.Empty => '-',
                 _ => throw new NotImplementedException()
             };
         }

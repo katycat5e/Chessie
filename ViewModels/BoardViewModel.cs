@@ -43,27 +43,27 @@ namespace Chessie.ViewModels
             _game.SelectedPieceChanged += OnSelectedPieceChanged;
             _game.BoardUpdated += OnBoardUpdated;
 
-            SetBoardState(_game.CurrentState);
+            RefreshBoardState();
         }
 
-        private void OnSelectedPieceChanged(SquareCoord? selection)
+        private void OnSelectedPieceChanged()
         {
             RefreshHighlights();
         }
 
         private void OnBoardUpdated()
         {
-            SetBoardState(_game.CurrentState);
+            RefreshBoardState();
         }
 
-        private void SetBoardState(BoardState newState)
+        private void RefreshBoardState()
         {
             for (int mapIndex = 0; mapIndex < N_SQUARES; mapIndex++)
             {
                 int rank = mapIndex / N_FILES;
                 int file = mapIndex % N_FILES;
 
-                var squareState = newState.Squares[mapIndex];
+                var squareState = _game.Board[mapIndex];
                 Squares[rank][file].SetState(squareState);
             }
         }
@@ -75,7 +75,7 @@ namespace Chessie.ViewModels
                 for (int file = SquareCoord.MIN_FILE; file <= SquareCoord.MAX_FILE; file++)
                 {
                     var currentSquare = Squares[rank][file];
-                    var coord = new SquareCoord(rank, file);
+                    int coord = rank * 8 + file;
 
                     if (_game.HumanMoves.Count > 0 && _game.HumanMoves.ContainsKey(coord))
                     {
@@ -87,7 +87,7 @@ namespace Chessie.ViewModels
                     }
 
                     currentSquare.IsSelected = coord == _game.SelectedPiece;
-                    currentSquare.IsInCheck = _game.CheckLocation.HasValue && coord == _game.CheckLocation;
+                    currentSquare.IsInCheck = coord == _game.CheckLocation;
                 }
             }
         }

@@ -1,17 +1,42 @@
 ﻿using Chessie.Engine;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Windows;
 using System.Windows.Threading;
 
 namespace Chessie.Model
 {
-    using MoveDictionary = Dictionary<SquareCoord, Move>;
+    using MoveDictionary = Dictionary<int, Move>;
 
     public class GameManager : INotifyPropertyChanged
     {
-        public event Action<SquareCoord?>? SelectedPieceChanged;
+        public event Action? SelectedPieceChanged;
         public event Action? BoardUpdated;
         public event PropertyChangedEventHandler? PropertyChanged;
+
+        private Board _board;
+
+        public Board Board
+        {
+            get => _board;
+
+            [MemberNotNull(nameof(_board))]
+            private set
+            {
+                _board = value;
+                _board.StateChanged += OnBoardStateChanged;
+            }
+        }
+
+        private void OnBoardStateChanged()
+        {
+            if (!_isAIThinking || ShowAIThoughts)
+            {
+                BoardUpdated?.Invoke();
+
+                if (_isAIThinking) AllowUIToUpdate();
+            }
+        }
 
 
         #region UI Properties
@@ -38,19 +63,7 @@ namespace Chessie.Model
             }
         }
 
-
-        private BoardState _currentState;
-        public BoardState CurrentState
-        {
-            get => _currentState;
-            private set
-            {
-                _currentState = value;
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(BlackToMove)));
-            }
-        }
-
-        public bool BlackToMove => CurrentState.BlackToMove;
+        public bool BlackToMove => Board.BlackToMove;
 
         public string TurnIndicator
         {
@@ -58,15 +71,15 @@ namespace Chessie.Model
             {
                 if (CheckMate)
                 {
-                    return CurrentState.BlackToMove ? "White Wins by Checkmate" : "Black Wins by Checkmate";
+                    return BlackToMove ? "White Wins by Checkmate" : "Black Wins by Checkmate";
                 }
-                return CurrentState.BlackToMove ? "Black to Move" : "White to Move";
+                return BlackToMove ? "Black to Move" : "White to Move";
             }
         }
 
-        private SquareCoord? _selectedPiece;
+        private int? _selectedPiece;
 
-        public SquareCoord? SelectedPiece
+        public int? SelectedPiece
         {
             get => _selectedPiece;
             set
@@ -77,17 +90,18 @@ namespace Chessie.Model
                 HumanMoves.Clear();
                 if (value != null)
                 {
-                    foreach (var move in BoardCalculator.GetValidMovesForPiece(CurrentState, value.Value))
+                    var piece = new LocatedPiece(Board[value.Value], value.Value);
+                    foreach (var move in BoardCalculator.GetValidMovesForPiece(Board, piece))
                     {
                         HumanMoves.Add(move.End, move);
                     }
                 }
 
-                SelectedPieceChanged?.Invoke(value);
+                SelectedPieceChanged?.Invoke();
             }
         }
 
-        public SquareCoord? CheckLocation { get; private set; }
+        public int? CheckLocation { get; private set; }
         public bool CheckMate { get; private set; }
 
         public MoveDictionary HumanMoves { get; } = new MoveDictionary();
@@ -117,6 +131,19 @@ namespace Chessie.Model
 
         public bool IsAITurn => _aiMoves != null;
 
+        private bool _isAIThinking = false;
+
+        private bool _showAIThoughts = false;
+        public bool ShowAIThoughts
+        {
+            get => _showAIThoughts;
+            set
+            {
+                _showAIThoughts = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowAIThoughts)));
+            }
+        }
+
         public ObservableStack<MoveRecord> PreviousMoves { get; } = new ObservableStack<MoveRecord>();
 
         #endregion
@@ -124,31 +151,15 @@ namespace Chessie.Model
 
         public GameManager()
         {
+            Board = new Board();
             StartNewGame();
         }
-
-        private static readonly PieceType[] START_STATE =
-        {
-            Piece.R, Piece.N, Piece.B, Piece.Q, Piece.K, Piece.B, Piece.N, Piece.R,
-            Piece.P, Piece.P, Piece.P, Piece.P, Piece.P, Piece.P, Piece.P, Piece.P,
-
-            Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X,
-            Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X,
-            Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X,
-            Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X,
-
-            Piece.p, Piece.p, Piece.p, Piece.p, Piece.p, Piece.p, Piece.p, Piece.p,
-            Piece.r, Piece.n, Piece.b, Piece.q, Piece.k, Piece.b, Piece.n, Piece.r,
-        };
 
         public void StartNewGame()
         {
             BlackIsCPU = true;
 
-            CurrentState = new BoardState(START_STATE)
-            {
-                CastleState = CastleState.All,
-            };
+            Board.Reset();
             SelectedPiece = null;
             CheckLocation = null;
             CheckMate = false;
@@ -158,25 +169,25 @@ namespace Chessie.Model
             AIThinkDuration = string.Empty;
 
             NotifyBoardChanged();
-            SelectedPieceChanged?.Invoke(null);
+            SelectedPieceChanged?.Invoke();
         }
 
-        public void ApplyGameState(BoardState newState)
+        public void ApplyGameState(Board newState)
         {
             WhiteIsCPU = BlackIsCPU = false;
 
-            CurrentState = newState;
+            Board = newState;
             SelectedPiece = null;
             PreviousMoves.Clear();
 
             AIMoves = null;
             AIThinkDuration = string.Empty;
 
-            if (BoardCalculator.IsCheck(CurrentState, CurrentState.BlackToMove, out var checkedKing))
+            if (BoardCalculator.IsCheck(Board, BlackToMove, out var checkedKing))
             {
                 CheckLocation = checkedKing;
 
-                if (BoardCalculator.IsMate(CurrentState, CurrentState.BlackToMove))
+                if (BoardCalculator.IsMate(Board, BlackToMove))
                 {
                     CheckMate = true;
                 }
@@ -187,19 +198,20 @@ namespace Chessie.Model
             }
 
             NotifyBoardChanged();
-            SelectedPieceChanged?.Invoke(null);
+            SelectedPieceChanged?.Invoke();
         }
 
         public bool IsMovablePiece(SquareCoord square)
         {
-            var squareState = CurrentState[square];
+            var squareState = Board[square];
 
-            return (squareState != PieceType.Empty) && (squareState.IsBlackPiece() == CurrentState.BlackToMove);
+            return squareState.IsOwnPiece(BlackToMove);
         }
 
-        public static bool IsPromotion(PieceType piece, SquareCoord destination)
+        public static bool IsPromotion(PieceType piece, int destination)
         {
-            return piece.IsPieceType(PieceType.Pawn) && (destination.IsInLastRank || destination.IsInFirstRank);
+            int rank = destination >> 3;
+            return piece.IsPieceType(PieceType.Pawn) && (rank == SquareCoord.MIN_RANK || rank == SquareCoord.MAX_RANK);
         }
 
         public void MakeMove(Move move, PieceType? promotion = null)
@@ -221,15 +233,14 @@ namespace Chessie.Model
 
         private void MakeMoveInternal(Move move, PieceType? promotion, IEnumerable<Move> availableMoves)
         {
-            var previousState = CurrentState;
-            CurrentState = CurrentState.ApplyMove(move, promotion);
+            Board.ApplyMove(move, promotion);
 
             bool isCheck, isMate = false;
-            if (isCheck = BoardCalculator.IsCheck(CurrentState, CurrentState.BlackToMove, out var checkedKing))
+            if (isCheck = BoardCalculator.IsCheck(Board, BlackToMove, out var checkedKing))
             {
                 CheckLocation = checkedKing;
 
-                if (isMate = BoardCalculator.IsMate(CurrentState, CurrentState.BlackToMove))
+                if (isMate = BoardCalculator.IsMate(Board, BlackToMove))
                 {
                     CheckMate = true;
                 }
@@ -239,7 +250,7 @@ namespace Chessie.Model
                 CheckLocation = null;
             }
 
-            var record = new MoveRecord(previousState, move, availableMoves, promotion, isCheck, isMate);
+            var record = new MoveRecord(move, availableMoves, promotion, isCheck, isMate);
             PreviousMoves.Push(record);
         }
 
@@ -250,9 +261,11 @@ namespace Chessie.Model
 
             if (isAITurn)
             {
+                _isAIThinking = true;
                 AllowUIToUpdate();
-                AIMoves = ChessieBot.RankPotentialMoves(CurrentState);
+                AIMoves = ChessieBot.RankPotentialMoves(Board);
                 AIThinkDuration = $"({ChessieBot.LastThinkDuration:f2} s)";
+                _isAIThinking = false;
             }
             else
             {

@@ -26,7 +26,7 @@ namespace Chessie
         {
             if (Game.IsMovablePiece(e.Coordinate))
             {
-                Game.SelectedPiece = e.Coordinate;
+                Game.SelectedPiece = e.Coordinate.Index;
             }
             else
             {
@@ -41,10 +41,9 @@ namespace Chessie
             var prevCursor = Cursor;
             Cursor = Cursors.Wait;
 
-            if (Game.HumanMoves.ContainsKey(e.Coordinate))
+            if (Game.HumanMoves.TryGetValue(e.Coordinate.Index, out var move))
             {
-                var move = Game.HumanMoves[e.Coordinate];
-                var piece = Game.CurrentState[move.Start];
+                var piece = Game.Board[move.Start];
 
                 PieceType? promotion = null;
                 if (GameManager.IsPromotion(piece, move.End))
@@ -52,10 +51,10 @@ namespace Chessie
                     promotion = PromotionSelector.PromptPromotion(this, piece.GetColor());
                 }
 
-                Game.MakeMove(Game.HumanMoves[e.Coordinate], promotion);
+                Game.MakeMove(move, promotion);
                 Game.SelectedPiece = null;
             }
-            else if (e.Coordinate != Game.SelectedPiece.Value)
+            else if (e.Coordinate.Index != Game.SelectedPiece)
             {
                 Game.SelectedPiece = null;
             }

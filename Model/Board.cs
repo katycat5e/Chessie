@@ -10,15 +10,31 @@ namespace Chessie.Model
     {
         public PieceType[] Squares { get; }
 
-        public PieceType this[int index] => Squares[index];
-        public PieceType this[int rank, int file] => Squares[(rank * 8) + file];
+        public PieceType this[int index]
+        {
+            get => Squares[index];
+            set => Squares[index] = value;
+        }
+        
+        public PieceType this[int rank, int file]
+        {
+            get => Squares[(rank * 8) + file];
+            set => Squares[(rank * 8) + file] = value;
+        }
+        
+        public PieceType this[SquareCoord coord]
+        {
+            get => Squares[(coord.Rank * 8) + coord.File];
+            set => Squares[(coord.Rank * 8) + coord.File] = value;
+        }
+        
 
         public CastleState CastleState { get; private set; }
         public int PlyNumber { get; private set; }
         public int? EnPassantSquare { get; private set; }
         public bool BlackToMove { get; private set; }
 
-        private readonly Stack<Move> _moveHistory = new();
+        private readonly Stack<UndoRecord> _moveHistory = new();
 
         public PieceMap WhitePieces { get; }
         public PieceMap BlackPieces { get; }
@@ -55,34 +71,66 @@ namespace Chessie.Model
             }
         }
 
+        public event Action? StateChanged;
+
         public Board()
         {
             Squares = new PieceType[64];
-            Array.Copy(START_STATE, Squares, 64);
 
-            WhitePieces = new PieceMap(Squares, PieceType.White);
-            BlackPieces = new PieceMap(Squares, PieceType.Black);
+            WhitePieces = new PieceMap(PieceType.White);
+            BlackPieces = new PieceMap(PieceType.Black);
+
+            WhitePieces.InitFromBoard(Squares);
+            BlackPieces.InitFromBoard(Squares);
         }
 
-        public void ApplyMove(Move move)
+        public Board(PieceType[] squares, CastleState castleState, int plyNumber, int? enPassantSquare, bool blackToMove)
+        {
+            Squares = squares;
+            CastleState = castleState;
+            PlyNumber = plyNumber;
+            EnPassantSquare = enPassantSquare;
+            BlackToMove = blackToMove;
+
+            WhitePieces = new PieceMap(PieceType.White);
+            BlackPieces = new PieceMap(PieceType.Black);
+
+            WhitePieces.InitFromBoard(Squares);
+            BlackPieces.InitFromBoard(Squares);
+        }
+
+        public void Reset()
+        {
+            Array.Copy(START_STATE, Squares, 64);
+
+            WhitePieces.InitFromBoard(Squares);
+            BlackPieces.InitFromBoard(Squares);
+        }
+
+        public void ApplyMove(Move move, PieceType? promotion = null)
         {
             Squares[move.Start] = PieceType.Empty;
             var capture = Squares[move.End];
             Squares[move.End] = move.Piece;
 
-            var toMoveMap = GetMap(move.Piece);
-            toMoveMap.MovePiece(move.Piece, move);
+            UndoEntry primaryUndo = UndoEntry.Move(move, !capture.IsAnyPiece());
+            UndoEntry? secondaryUndo = null;
+            UndoEntry? tertiaryUndo = null;
 
             // en passant
             if (move.EnPassant)
             {
+                var enPassantPawn = Squares[move.EnPassantCapture];
                 Squares[move.EnPassantCapture] = PieceType.Empty;
                 GetOpponentMap(move.Piece).RemovePiece(PieceType.Pawn, move.EnPassantCapture);
+
+                secondaryUndo = UndoEntry.Capture(enPassantPawn, move.EnPassantCapture);
             }
             // capture
             else if (capture.IsAnyPiece())
             {
                 GetMap(capture).RemovePiece(capture, move.End);
+                secondaryUndo = UndoEntry.Capture(capture, move.End);
             }
             // castle
             else if (move.CastlingRookStart.HasValue)
@@ -90,20 +138,105 @@ namespace Chessie.Model
                 var rook = Squares[move.CastlingRookStart.Value];
                 Squares[move.CastlingRookStart.Value] = PieceType.Empty;
                 Squares[move.CastlingRookEnd] = rook;
-            }
-            else if (move.IsPawnDoubleMove)
-            {
-                EnPassantSquare = move.EnPassantCapture;
+                secondaryUndo = UndoEntry.Move(rook, move.CastlingRookStart.Value, move.CastlingRookEnd, true);
             }
 
-            _moveHistory.Push(move);
+            int? oldPassantSquare = EnPassantSquare;
+            EnPassantSquare = move.IsPawnDoubleMove ? move.EnPassantCapture : null;
+
+            // promotion
+            if (promotion.HasValue)
+            {
+                Squares[move.End] = promotion.Value;
+                GetMap(move.Piece).RemovePiece(move.Piece, move.Start);
+                GetMap(move.Piece).AddPiece(promotion.Value, move.End);
+
+                tertiaryUndo = UndoEntry.Promotion(promotion.Value, move.End);
+            }
+            // regular move
+            else
+            {
+                var toMoveMap = GetMap(move.Piece);
+                toMoveMap.MovePiece(move.Piece, move);
+            }
+
+            // castling flags
+            var oldCastleState = CastleState;
+            if (move.Piece.IsPieceType(PieceType.King))
+            {
+                CastleState mask = BlackToMove ? CastleState.AllBlack : CastleState.AllWhite;
+                CastleState &= ~mask;
+            }
+            else if (move.Piece.IsPieceType(PieceType.Rook))
+            {
+                if (move.Start == WKRookStart)
+                {
+                    CastleState &= ~CastleState.WhiteKingside;
+                }
+                else if (move.Start == WQRookStart)
+                {
+                    CastleState &= ~CastleState.WhiteQueenside;
+                }
+                else if (move.Start == BKRookStart)
+                {
+                    CastleState &= ~CastleState.BlackKingside;
+                }
+                else if (move.Start == BQRookStart)
+                {
+                    CastleState &= ~CastleState.BlackQueenside;
+                }
+            }
+
+            BlackToMove = !BlackToMove;
+            PlyNumber++;
+
+            var undoEntry = new UndoRecord(oldCastleState, oldPassantSquare, primaryUndo, secondaryUndo, tertiaryUndo);
+            _moveHistory.Push(undoEntry);
+
+            StateChanged?.Invoke();
         }
 
         public void UndoLastMove()
         {
-            var move = _moveHistory.Pop();
+            var record = _moveHistory.Pop();
 
-            // do the thing
+            if (record.Tertiary.HasValue) ExecuteUndoEntry(record.Tertiary.Value);
+            if (record.Secondary.HasValue) ExecuteUndoEntry(record.Secondary.Value);
+            ExecuteUndoEntry(record.Primary);
+
+            CastleState = record.PrevCastleState;
+            EnPassantSquare = record.PrevPassantSquare;
+
+            BlackToMove = !BlackToMove;
+            PlyNumber--;
+
+            StateChanged?.Invoke();
+        }
+
+        private void ExecuteUndoEntry(UndoEntry entry)
+        {
+            switch (entry.Type)
+            {
+                case UndoEntryType.Moved:
+                    Squares[entry.OriginalIndex] = entry.Piece;
+                    GetMap(entry.Piece).MovePiece(entry.Piece, entry.NewIndex, entry.OriginalIndex);
+
+                    if (entry.DestWasEmpty)
+                    {
+                        Squares[entry.NewIndex] = PieceType.Empty;
+                    }
+                    break;
+
+                case UndoEntryType.Captured:
+                    Squares[entry.OriginalIndex] = entry.Piece;
+                    GetMap(entry.Piece).AddPiece(entry.Piece, entry.OriginalIndex);
+                    break;
+
+                case UndoEntryType.Promoted:
+                    GetMap(entry.Piece).RemovePiece(entry.Piece, entry.OriginalIndex);
+                    GetMap(entry.Piece).AddPiece(PieceType.Pawn, entry.OriginalIndex);
+                    break;
+            }
         }
 
         private static void GenerateThreatMaps()
@@ -128,5 +261,117 @@ namespace Chessie.Model
             Piece.p, Piece.p, Piece.p, Piece.p, Piece.p, Piece.p, Piece.p, Piece.p,
             Piece.r, Piece.n, Piece.b, Piece.q, Piece.k, Piece.b, Piece.n, Piece.r,
         };
+
+        // rook start position indices
+        private static readonly int WQRookStart = 0;
+        private static readonly int WKRookStart = 7;
+        private static readonly int BQRookStart = 56;
+        private static readonly int BKRookStart = 63;
+
+        public string DebugView
+        {
+            get
+            {
+                var chars = new char[72];
+
+                for (int rank = 7; rank >= 0; rank--)
+                {
+                    for (int file = 0; file <= 8; file++)
+                    {
+                        int stringIndex = ((7 - rank) * 9) + file;
+
+                        if (file == 8)
+                        {
+                            chars[stringIndex] = (stringIndex == 71) ? '\0' : '\n';
+                        }
+                        else
+                        {
+                            int squareIndex = (rank << 3) | file;
+                            chars[stringIndex] = Squares[squareIndex].FenId();
+                        }
+                    }
+                }
+
+                return new string(chars);
+            }
+        }
+
+
+        private readonly struct UndoRecord
+        {
+            public readonly CastleState PrevCastleState;
+            public readonly int? PrevPassantSquare;
+            public readonly UndoEntry Primary;
+            public readonly UndoEntry? Secondary;
+            public readonly UndoEntry? Tertiary;
+
+            public UndoRecord(CastleState prevCastleState, int? passantSquare, UndoEntry primary, UndoEntry? secondary, UndoEntry? tertiary)
+            {
+                PrevCastleState = prevCastleState;
+                PrevPassantSquare = passantSquare;
+                Primary = primary;
+                Secondary = secondary;
+                Tertiary = tertiary;
+            }
+        }
+
+        private readonly struct UndoEntry
+        {
+            public readonly UndoEntryType Type;
+            public readonly PieceType Piece;
+            public readonly int OriginalIndex;
+            public readonly int NewIndex;
+            public readonly bool DestWasEmpty;
+
+            private UndoEntry(UndoEntryType type, PieceType piece, int oldIndex, int newIndex, bool destWasEmpty = true)
+            {
+                Type = type;
+                Piece = piece;
+                OriginalIndex = oldIndex;
+                NewIndex = newIndex;
+                DestWasEmpty = destWasEmpty;
+            }
+
+            public static UndoEntry Move(Move move, bool toEmptySquare) =>
+                new(UndoEntryType.Moved, move.Piece, move.Start, move.End, toEmptySquare);
+
+            public static UndoEntry Move(PieceType piece, int oldIndex, int newIndex, bool toEmptySquare) =>
+                new(UndoEntryType.Moved, piece, oldIndex, newIndex, toEmptySquare);
+
+            public static UndoEntry Capture(PieceType piece, int oldIndex) =>
+                new(UndoEntryType.Captured, piece, oldIndex, -1);
+
+            public static UndoEntry Promotion(PieceType promotion, int index) =>
+                new(UndoEntryType.Promoted, promotion, index, index);
+
+            public override string ToString()
+            {
+                return $"{Type} {Piece.TypeIcon()}{new SquareCoord(OriginalIndex)}->{new SquareCoord(NewIndex)}";
+            }
+        }
+
+        private enum UndoEntryType
+        {
+            Moved,
+            Captured,
+            Promoted,
+        }
+    }
+
+
+    [Flags]
+    public enum CastleState : byte
+    {
+        None = 0,
+
+        WhiteKingside = 1,
+        WhiteQueenside = 2,
+
+        BlackKingside = 4,
+        BlackQueenside = 8,
+
+        AllWhite = WhiteKingside | WhiteQueenside,
+        AllBlack = BlackKingside | BlackQueenside,
+        All = AllWhite | AllBlack,
     }
 }

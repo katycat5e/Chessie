@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Chessie.Model
 {
@@ -29,27 +30,32 @@ namespace Chessie.Model
 
         private void BustBitBoard() => _pieceBitboard = null;
 
+        public PieceMap(PieceType color)
+        {
+            Color = color;
+        }
+
         public PieceMap(PieceType[] squares, PieceType color)
         {
             Color = color;
-            InitFromBoard(squares, color);
+            InitFromBoard(squares);
         }
 
-        public void InitFromBoard(PieceType[] squares, PieceType color)
+        public void InitFromBoard(PieceType[] squares)
         {
             Array.Fill(_pieceCounts, 0);
 
             for (int index = 0; index < 64; index++)
             {
                 var piece = squares[index];
-                if (piece.HasFlag(color))
+                if (piece.HasFlag(Color))
                 {
                     AddPiece(piece, index);
                 }
             }
         }
 
-        private void AddPiece(PieceType piece, int location)
+        public void AddPiece(PieceType piece, int location)
         {
             if (piece.HasFlag(PieceType.King))
             {
@@ -69,17 +75,20 @@ namespace Chessie.Model
             BustBitBoard();
         }
 
-        public void MovePiece(PieceType piece, Move move)
+        public void MovePiece(PieceType piece, Move move) =>
+            MovePiece(piece, move.Start, move.End);
+
+        public void MovePiece(PieceType piece, int origin, int destination)
         {
             if (piece.HasFlag(PieceType.King))
             {
-                King = move.End;
+                King = destination;
                 return;
             }
 
             int typeIndex = TypeIndex(piece);
-            int pieceIndex = PieceIndex(typeIndex, move.Start);
-            _locations[typeIndex, pieceIndex] = move.End;
+            int pieceIndex = PieceIndex(typeIndex, origin);
+            _locations[typeIndex, pieceIndex] = destination;
 
             BustBitBoard();
         }
@@ -172,6 +181,26 @@ namespace Chessie.Model
         {
             Piece = piece;
             Location = location;
+        }
+
+        public static bool operator ==(LocatedPiece left, LocatedPiece right)
+        {
+            return (left.Piece == right.Piece) && (left.Location == right.Location);
+        }
+
+        public static bool operator !=(LocatedPiece left, LocatedPiece right)
+        {
+            return (left.Piece != right.Piece) || (left.Location != right.Location);
+        }
+
+        public override bool Equals([NotNullWhen(true)] object? obj)
+        {
+            return (obj is LocatedPiece other) && (this == other);
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(Piece, Location);
         }
     }
 }

@@ -13,18 +13,21 @@ namespace Chessie.Engine
         public static float LastThinkDuration { get; private set; }
         public static int StatesEvaluated { get; private set; }
 
-        public static List<RankedMove> RankPotentialMoves(BoardState board)
+        public static List<RankedMove> RankPotentialMoves(Board board)
         {
             StatesEvaluated = 0;
+            bool playingAsBlack = board.BlackToMove;
+
             var watch = Stopwatch.StartNew();
 
-            var nextMoves = BoardCalculator.GetAllValidMoves(board, board.BlackToMove);
+            var nextMoves = BoardCalculator.GetAllValidMoves(board, playingAsBlack);
 
             var sortedMoves = new List<RankedMove>();
             foreach (var move in nextMoves)
             {
-                var result = board.ApplyMove(move);
-                int bestEval = Search(result, SEARCH_DEPTH, board.BlackToMove, MAX, MIN, out string seq);// + Random.Shared.Next(-5, 5);
+                board.ApplyMove(move);
+                int bestEval = Search(board, SEARCH_DEPTH, playingAsBlack, MAX, MIN, out string seq);// + Random.Shared.Next(-5, 5);
+                board.UndoLastMove();
                 sortedMoves.Add(new RankedMove(bestEval, move, seq));
             }
 
@@ -51,7 +54,7 @@ namespace Chessie.Engine
             return sortedMoves;
         }
 
-        private static int Search(BoardState board, int depthLimit, bool maximizing, int minimumMaximizer, int maximumMinimizer, out string moveSeq)
+        private static int Search(Board board, int depthLimit, bool maximizing, int minimumMaximizer, int maximumMinimizer, out string moveSeq)
         {
             if (depthLimit == 0)
             {
@@ -74,9 +77,9 @@ namespace Chessie.Engine
 
                 foreach (var move in nextMoves)
                 {
-                    var nextBoard = board.ApplyMove(move);
-
-                    int bestMoveResult = Search(nextBoard, depthLimit - 1, !maximizing, minimumMaximizer, maximumMinimizer, out string nextSeq);
+                    board.ApplyMove(move);
+                    int bestMoveResult = Search(board, depthLimit - 1, !maximizing, minimumMaximizer, maximumMinimizer, out string nextSeq);
+                    board.UndoLastMove();
 
                     if (bestMoveResult > bestEval)
                     {
@@ -96,9 +99,9 @@ namespace Chessie.Engine
 
                 foreach (var move in nextMoves)
                 {
-                    var nextBoard = board.ApplyMove(move);
-
-                    int bestMoveResult = Search(nextBoard, depthLimit - 1, !maximizing, minimumMaximizer, maximumMinimizer, out string nextSeq);
+                    board.ApplyMove(move);
+                    int bestMoveResult = Search(board, depthLimit - 1, !maximizing, minimumMaximizer, maximumMinimizer, out string nextSeq);
+                    board.UndoLastMove();
 
                     if (bestMoveResult < bestEval)
                     {
@@ -117,7 +120,7 @@ namespace Chessie.Engine
             return bestEval;
         }
 
-        public static int Evaluate(BoardState board)
+        public static int Evaluate(Board board)
         {
             int eval = MaterialEval(board);
             eval += PST_Eval(board);
@@ -136,15 +139,16 @@ namespace Chessie.Engine
         }
 
         // returns white's material advantage
-        private static int MaterialEval(BoardState board)
+        private static int MaterialEval(Board board)
         {
             int total = 0;
-            foreach (var piece in board)
+            foreach (var piece in board.EnumeratePieces(false))
             {
-                if (piece.IsAnyPiece())
-                {
-                    total += PieceValue(piece);
-                }
+                total += PieceValue(piece.Piece);
+            }
+            foreach (var piece in board.EnumeratePieces(true))
+            {
+                total += PieceValue(piece.Piece);
             }
             return total;
         }
@@ -178,20 +182,16 @@ namespace Chessie.Engine
         }
 
         // returns white's position advantage
-        private static int PST_Eval(BoardState board)
+        private static int PST_Eval(Board board)
         {
             int eval = 0;
-            foreach (var square in SquareCoord.AllSquares)
+            foreach (var whitePiece in board.EnumeratePieces(false))
             {
-                var piece = board[square];
-                if (piece.IsWhitePiece())
-                {
-                    eval += PieceSquareTables.Evaluate(piece, square);
-                }
-                else if (piece.IsBlackPiece())
-                {
-                    eval -= PieceSquareTables.Evaluate(piece, square);
-                }
+                eval += PieceSquareTables.Evaluate(whitePiece);
+            }
+            foreach (var blackPiece in board.EnumeratePieces(true))
+            {
+                eval -= PieceSquareTables.Evaluate(blackPiece);
             }
 
             return eval;

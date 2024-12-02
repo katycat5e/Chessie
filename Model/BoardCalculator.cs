@@ -1,4 +1,6 @@
-﻿namespace Chessie.Model
+﻿using System.Diagnostics.CodeAnalysis;
+
+namespace Chessie.Model
 {
     public static class BoardCalculator
     {
@@ -55,7 +57,7 @@
 
         private static IEnumerable<Move> GetValidPawnMoves(Board board, LocatedPiece piece)
         {
-            int rankMovement = board.BlackToMove ? DOWN : UP;
+            int rankMovement = piece.Piece.IsBlackPiece() ? DOWN : UP;
 
             var forwardSquare = piece.Location + rankMovement;
             if (board[forwardSquare] == PieceType.Empty)
@@ -64,7 +66,7 @@
             }
 
             // initial 2-square jump
-            int initialRank = board.BlackToMove ? MAX_COORD - 1 : MIN_COORD + 1;
+            int initialRank = piece.Piece.IsBlackPiece() ? MAX_COORD - 1 : MIN_COORD + 1;
             if (piece.Rank == initialRank)
             {
                 forwardSquare = piece.Location + rankMovement * 2;
@@ -222,7 +224,7 @@
             return isCheck;
         }
 
-        public static bool IsCheck(Board board, bool forBlack, out int? checkLocation)
+        public static bool IsCheck(Board board, bool forBlack, [NotNullWhen(true)]out int? checkLocation)
         {
             var kingLocation = board.GetMap(forBlack).King;
 
