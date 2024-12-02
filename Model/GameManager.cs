@@ -204,14 +204,14 @@ namespace Chessie.Model
         public bool IsMovablePiece(SquareCoord square)
         {
             var squareState = Board[square];
-
-            return squareState.IsOwnPiece(BlackToMove);
+            var ownColor = BlackToMove ? PieceType.Black : PieceType.White;
+            return (squareState & ownColor) != 0;
         }
 
         public static bool IsPromotion(PieceType piece, int destination)
         {
             int rank = destination >> 3;
-            return piece.IsPieceType(PieceType.Pawn) && (rank == SquareCoord.MIN_RANK || rank == SquareCoord.MAX_RANK);
+            return ((piece & PieceType.Pawn) != 0) && (rank == SquareCoord.MIN_RANK || rank == SquareCoord.MAX_RANK);
         }
 
         public void MakeMove(Move move, PieceType? promotion = null)

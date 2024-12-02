@@ -30,7 +30,7 @@ namespace Chessie.ViewModels
         {
             if (state == PieceType.Empty) return string.Empty;
 
-            if (state.HasFlag(PieceType.White))
+            if ((state & PieceType.White) != 0)
             {
                 return (state & PieceType.PieceMask) switch
                 {
@@ -43,7 +43,7 @@ namespace Chessie.ViewModels
                     _ => throw new NotImplementedException()
                 };
             }
-            else if (state.HasFlag(PieceType.Black))
+            else if ((state & PieceType.Black) != 0)
             {
                 return (state & PieceType.PieceMask) switch
                 {

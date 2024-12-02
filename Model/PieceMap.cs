@@ -3,7 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Chessie.Model
 {
-    public class PieceMap : IEnumerable<LocatedPiece>
+    public class PieceMap
     {
         const int N_TYPES = 5;
         const int MAX_PIECES = 8;
@@ -48,7 +48,7 @@ namespace Chessie.Model
             for (int index = 0; index < 64; index++)
             {
                 var piece = squares[index];
-                if (piece.HasFlag(Color))
+                if ((piece & Color) != 0)
                 {
                     AddPiece(piece, index);
                 }
@@ -57,7 +57,7 @@ namespace Chessie.Model
 
         public void AddPiece(PieceType piece, int location)
         {
-            if (piece.HasFlag(PieceType.King))
+            if ((piece & PieceType.King) != 0)
             {
                 King = location;
                 return;
@@ -80,7 +80,7 @@ namespace Chessie.Model
 
         public void MovePiece(PieceType piece, int origin, int destination)
         {
-            if (piece.HasFlag(PieceType.King))
+            if ((piece & PieceType.King) != 0)
             {
                 King = destination;
                 return;
@@ -116,7 +116,7 @@ namespace Chessie.Model
 
         private static int TypeIndex(PieceType pieceType)
         {
-            return pieceType.GetUncoloredType() switch
+            return (pieceType & PieceType.PieceMask) switch
             {
                 PieceType.Pawn => 0,
                 PieceType.Knight => 1,
@@ -130,7 +130,7 @@ namespace Chessie.Model
         private ulong GenerateBitboard()
         {
             ulong result = 0;
-            foreach (var piece in this)
+            foreach (var piece in AllPieces())
             {
                 ulong mask = 1ul << piece.Location;
                 result |= mask;
@@ -147,24 +147,25 @@ namespace Chessie.Model
             PieceType.Queen,
         };
 
-        public IEnumerator<LocatedPiece> GetEnumerator()
+        public IList<LocatedPiece> AllPieces()
         {
+            var result = new LocatedPiece[16];
+            int index = 0;
+
             for (int typeIdx = 0; typeIdx < N_TYPES; typeIdx++)
             {
                 var type = _types[typeIdx] | Color;
 
                 for (int i = 0; i < _pieceCounts[typeIdx]; i++)
                 {
-                    yield return new LocatedPiece(type, _locations[typeIdx, i]);
+                    result[index] = new LocatedPiece(type, _locations[typeIdx, i]);
+                    index++;
                 }
             }
 
-            yield return new LocatedPiece(PieceType.King | Color, King);
-        }
-
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
+            result[index] = new LocatedPiece(PieceType.King | Color, King);
+            
+            return (index == 16) ? result : new ArraySegment<LocatedPiece>(result, 0, index);
         }
     }
 

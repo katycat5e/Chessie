@@ -11,10 +11,10 @@ namespace Chessie.Engine
     {
         public static int Evaluate(LocatedPiece piece)
         {
-            int adjRank = piece.Piece.IsWhitePiece() ? (SquareCoord.MAX_RANK - piece.Rank) : piece.Rank;
+            int adjRank = ((piece.Piece & PieceType.White) != 0) ? (SquareCoord.MAX_RANK - piece.Rank) : piece.Rank;
             int index = adjRank * 8 + piece.File;
 
-            int[] table = piece.Piece.GetUncoloredType() switch
+            int[] table = (piece.Piece & PieceType.PieceMask) switch
             {
                 PieceType.Pawn => PawnTable,
                 PieceType.Knight => KnightTable,

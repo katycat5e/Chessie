@@ -39,7 +39,7 @@ namespace Chessie.Model
 
         public static IEnumerable<Move> GetPotentialMovesForPiece(Board board, LocatedPiece piece)
         {
-            IEnumerable<Move> allMoves = piece.Piece.GetUncoloredType() switch
+            IEnumerable<Move> allMoves = (piece.Piece & PieceType.PieceMask) switch
             {
                 PieceType.Pawn => GetValidPawnMoves(board, piece),
                 PieceType.Knight => GetValidKnightMoves(board, piece),
@@ -57,7 +57,7 @@ namespace Chessie.Model
 
         private static IEnumerable<Move> GetValidPawnMoves(Board board, LocatedPiece piece)
         {
-            int rankMovement = piece.Piece.IsBlackPiece() ? DOWN : UP;
+            int rankMovement = ((piece.Piece & PieceType.Black) != 0) ? DOWN : UP;
 
             var forwardSquare = piece.Location + rankMovement;
             if (board[forwardSquare] == PieceType.Empty)
@@ -66,7 +66,7 @@ namespace Chessie.Model
             }
 
             // initial 2-square jump
-            int initialRank = piece.Piece.IsBlackPiece() ? MAX_COORD - 1 : MIN_COORD + 1;
+            int initialRank = ((piece.Piece & PieceType.Black) != 0) ? MAX_COORD - 1 : MIN_COORD + 1;
             if (piece.Rank == initialRank)
             {
                 forwardSquare = piece.Location + rankMovement * 2;
@@ -228,7 +228,7 @@ namespace Chessie.Model
         {
             var kingLocation = board.GetMap(forBlack).King;
 
-            foreach (var piece in board.GetOpponentMap(forBlack))
+            foreach (var piece in board.GetOpponentMap(forBlack).AllPieces())
             {
                 var potentialMoves = GetPotentialMovesForPiece(board, piece);
                 if (potentialMoves.Any(move => move.End == kingLocation))

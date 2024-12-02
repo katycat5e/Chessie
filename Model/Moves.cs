@@ -33,7 +33,7 @@ namespace Chessie.Model
 
         public readonly int EnPassantCapture => (End > Start) ? (End - FILES_PER_RANK) : (End + FILES_PER_RANK);
 
-        public readonly bool IsPawnDoubleMove => Piece.IsPieceType(PieceType.Pawn) && (Math.Abs(End - Start) == (FILES_PER_RANK * 2));
+        public readonly bool IsPawnDoubleMove => ((Piece & PieceType.Pawn) != 0) && (Math.Abs(End - Start) == (FILES_PER_RANK * 2));
 
         public Move(PieceType piece, PieceType targetPiece, int startIndex, int endIndex, int? rook = null, bool enPassant = false)
         {
@@ -102,7 +102,7 @@ namespace Chessie.Model
             Destination = new SquareCoord(move.End);
             Promotion = promotion;
 
-            bool isCapture = CapturedPiece.IsAnyPiece() || move.EnPassant;
+            bool isCapture = (CapturedPiece != PieceType.Empty) || move.EnPassant;
 
             if (move.CastlingRookStart.HasValue)
             {
@@ -128,7 +128,7 @@ namespace Chessie.Model
             if (!isCapture)
             {
                 // pawn move
-                if (Piece.IsPieceType(PieceType.Pawn))
+                if ((Piece & PieceType.Pawn) != 0)
                 {
                     string endSquare = Destination.ToString();
                     PrettyAlgebraic = Algebraic = promotion.HasValue ? $"{endSquare}={promotion.Value.TypeId()}" : endSquare;
@@ -158,7 +158,7 @@ namespace Chessie.Model
             var sb = new StringBuilder();
             char? pieceChar = null;
 
-            if (Piece.IsPieceType(PieceType.Pawn))
+            if ((Piece & PieceType.Pawn) != 0)
             {
                 sb.Append(Origin.FileId);
             }

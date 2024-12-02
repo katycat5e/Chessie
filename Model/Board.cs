@@ -39,15 +39,15 @@ namespace Chessie.Model
         public PieceMap WhitePieces { get; }
         public PieceMap BlackPieces { get; }
 
-        public PieceMap GetMap(PieceType color) => color.HasFlag(PieceType.Black) ? BlackPieces : WhitePieces;
+        public PieceMap GetMap(PieceType color) => (color & PieceType.Black) != 0 ? BlackPieces : WhitePieces;
         public PieceMap GetMap(bool forBlack) => forBlack ? BlackPieces : WhitePieces;
 
-        public PieceMap GetOpponentMap(PieceType color) => color.HasFlag(PieceType.Black) ? WhitePieces : BlackPieces;
+        public PieceMap GetOpponentMap(PieceType color) => (color & PieceType.Black) != 0 ? WhitePieces : BlackPieces;
         public PieceMap GetOpponentMap(bool forBlack) => forBlack ? WhitePieces : BlackPieces;
 
         public IEnumerable<LocatedPiece> EnumeratePieces(bool forBlack)
         {
-            return forBlack ? BlackPieces : WhitePieces;
+            return forBlack ? BlackPieces.AllPieces() : WhitePieces.AllPieces();
         }
 
         private ulong _threatsForWhite = 0;
@@ -113,7 +113,7 @@ namespace Chessie.Model
             var capture = Squares[move.End];
             Squares[move.End] = move.Piece;
 
-            UndoEntry primaryUndo = UndoEntry.Move(move, !capture.IsAnyPiece());
+            UndoEntry primaryUndo = UndoEntry.Move(move, capture == PieceType.Empty);
             UndoEntry? secondaryUndo = null;
             UndoEntry? tertiaryUndo = null;
 
@@ -127,7 +127,7 @@ namespace Chessie.Model
                 secondaryUndo = UndoEntry.Capture(enPassantPawn, move.EnPassantCapture);
             }
             // capture
-            else if (capture.IsAnyPiece())
+            else if (capture != PieceType.Empty)
             {
                 GetMap(capture).RemovePiece(capture, move.End);
                 secondaryUndo = UndoEntry.Capture(capture, move.End);
@@ -162,12 +162,12 @@ namespace Chessie.Model
 
             // castling flags
             var oldCastleState = CastleState;
-            if (move.Piece.IsPieceType(PieceType.King))
+            if ((move.Piece & PieceType.King) != 0)
             {
                 CastleState mask = BlackToMove ? CastleState.AllBlack : CastleState.AllWhite;
                 CastleState &= ~mask;
             }
-            else if (move.Piece.IsPieceType(PieceType.Rook))
+            else if ((move.Piece & PieceType.Rook) != 0)
             {
                 if (move.Start == WKRookStart)
                 {
