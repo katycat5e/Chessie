@@ -22,6 +22,8 @@ namespace Chessie.Model
         Black = 128,
 
         PieceMask = Pawn | Knight | Bishop | Rook | Queen | King,
+        BlackPieceMask = Black | PieceMask,
+        WhitePieceMask = White | PieceMask,
         ColorMask = White | Black,
     }
 
@@ -43,56 +45,15 @@ namespace Chessie.Model
         public const PieceType q = PieceType.Black | PieceType.Queen;
         public const PieceType k = PieceType.Black | PieceType.King;
 
-        public static bool IsAnyPiece(this PieceType square)
-        {
-            return (square & PieceType.PieceMask) != 0;
-        }
-
-        public static bool IsPieceType(this PieceType piece, PieceType type)
-        {
-            return piece.HasFlag(type);
-        }
-
-        public static PieceType GetUncoloredType(this PieceType piece)
-        {
-            return piece & PieceType.PieceMask;
-        }
-
-        public static PieceType GetColor(this PieceType piece)
-        {
-            return piece & PieceType.ColorMask;
-        }
-
-        public static bool IsWhitePiece(this PieceType piece)
-        {
-            return piece.HasFlag(PieceType.White) && piece.IsAnyPiece();
-        }
-
-        public static bool IsBlackPiece(this PieceType piece)
-        {
-            return piece.HasFlag(PieceType.Black) && piece.IsAnyPiece();
-        }
-
-        public static bool IsOwnPiece(this PieceType piece, bool blackToMove)
-        {
-            var ownColor = blackToMove ? PieceType.Black : PieceType.White;
-            return piece.HasFlag(ownColor);
-        }
-
-        public static bool IsOpponentPiece(this PieceType piece, bool blackToMove)
-        {
-            var opponentColor = blackToMove ? PieceType.White : PieceType.Black;
-            return piece.HasFlag(opponentColor);
-        }
-
         public static bool IsOpponentPiece(this PieceType piece, PieceType target)
         {
-            return target.IsAnyPiece() && (piece.GetColor() != target.GetColor());
+            return (piece != PieceType.Empty) && (target != PieceType.Empty) &&
+                (piece & PieceType.ColorMask) != (target & PieceType.ColorMask);
         }
 
         public static char TypeId(this PieceType piece)
         {
-            return piece.GetUncoloredType() switch
+            return (piece & PieceType.PieceMask) switch
             {
                 PieceType.Knight => 'N',
                 PieceType.Bishop => 'B',
@@ -104,11 +65,33 @@ namespace Chessie.Model
             };
         }
 
+        public static char FenId(this PieceType piece)
+        {
+            return piece switch
+            {
+                P => 'P',
+                N => 'N',
+                B => 'B',
+                R => 'R',
+                Q => 'Q',
+                K => 'K',
+
+                p => 'p',
+                n => 'n',
+                b => 'b',
+                r => 'r',
+                q => 'q',
+                k => 'k',
+
+                _ => '-',
+            };
+        }
+
         public static char TypeIcon(this PieceType piece)
         {
-            if (piece.IsWhitePiece())
+            if ((piece & PieceType.White) != 0)
             {
-                return piece.GetUncoloredType() switch
+                return (piece & PieceType.PieceMask) switch
                 {
                     PieceType.Pawn => '♙',
                     PieceType.Knight => '♘',
@@ -120,7 +103,7 @@ namespace Chessie.Model
                 };
             }
 
-            return piece.GetUncoloredType() switch
+            return (piece & PieceType.PieceMask) switch
             {
                 PieceType.Pawn => '♟',
                 PieceType.Knight => '♞',
@@ -128,6 +111,7 @@ namespace Chessie.Model
                 PieceType.Rook => '♜',
                 PieceType.Queen => '♛',
                 PieceType.King => '♚',
+                PieceType.Empty => '-',
                 _ => throw new NotImplementedException()
             };
         }

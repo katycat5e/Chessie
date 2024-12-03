@@ -41,6 +41,7 @@
             <DockPanel Grid.Row="0" Grid.Column="2" LastChildFill="True">
                 <CheckBox DockPanel.Dock="Top" x:Name="WhiteCPUCheckbox" Content="Use AI for White" IsChecked="{Binding Game.WhiteIsCPU}"/>
                 <CheckBox DockPanel.Dock="Top" x:Name="BlackCPUCheckbox" Content="Use AI for Black" IsChecked="{Binding Game.BlackIsCPU}"/>
+                <CheckBox DockPanel.Dock="Top" x:Name="ShowAIThoughtsCheckbox" Content="Show AI Move Consideration" IsChecked="{Binding Game.ShowAIThoughts}"/>
 
                 <Separator  DockPanel.Dock="Top"/>
                 <Label DockPanel.Dock="Top" Content="{Binding Game.TurnIndicator}" FontFamily="DejaVu Sans"/>

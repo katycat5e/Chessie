@@ -4,46 +4,70 @@ namespace Chessie.Model
 {
     public readonly struct Move
     {
+        private const int FILES_PER_RANK = 8;
+
         public readonly PieceType Piece;
-        public readonly SquareCoord Start;
-        public readonly SquareCoord End;
-        public readonly SquareCoord? CastlingRookStart;
+        public readonly PieceType CapturedPiece;
+        public readonly int Start;
+        public readonly int End;
+        public readonly int? CastlingRookStart;
         public readonly bool EnPassant;
 
-        public readonly SquareCoord CastlingRookEnd
+        public readonly SquareCoord StartCoord => new(Start);
+        public readonly SquareCoord EndCoord => new(End);
+
+        public readonly int StartRank => Start >> 3;
+        public readonly int StartFile => Start & 7;
+
+        public readonly int EndRank => End >> 3;
+        public readonly int EndFile => End & 7;
+
+        public readonly int CastlingRookEnd
         {
             get
             {
-                int kingDir = Math.Sign(End.File - Start.File);
-                return new SquareCoord(End.Rank, End.File - kingDir);
+                int kingDir = Math.Sign(End - Start);
+                return End - kingDir;
             }
         }
 
-        public readonly SquareCoord EnPassantCapture => new(End.Rank - 1, End.File);
+        public readonly int EnPassantCapture => (End > Start) ? (End - FILES_PER_RANK) : (End + FILES_PER_RANK);
 
-        public readonly int DeltaRank => End.Rank - Start.Rank;
+        public readonly bool IsPawnDoubleMove => ((Piece & PieceType.Pawn) != 0) && (Math.Abs(End - Start) == (FILES_PER_RANK * 2));
 
-        public Move(PieceType piece, SquareCoord start, SquareCoord end, SquareCoord? rook = null, bool enPassant = false)
+        public Move(PieceType piece, PieceType targetPiece, int startIndex, int endIndex, int? rook = null, bool enPassant = false)
         {
             Piece = piece;
-            Start = start;
-            End = end;
+            CapturedPiece = targetPiece;
+            Start = startIndex;
+            End = endIndex;
             CastlingRookStart = rook;
             EnPassant = enPassant;
         }
 
-        public Move(PieceType piece, SquareCoord start, int dRank, int dFile, SquareCoord? rook = null, bool enPassant = false)
-        {
-            Piece = piece;
-            Start = start;
-            End = new(Start.Rank + dRank, Start.File + dFile);
-            CastlingRookStart = rook;
-            EnPassant = enPassant;
-        }
+        public Move(LocatedPiece piece, PieceType targetPiece, int endIndex, int? rook = null, bool enPassant = false)
+            : this(piece.Piece, targetPiece, piece.Location, endIndex, rook, enPassant)
+        { }
+
+        public Move(PieceType piece, PieceType targetPiece, SquareCoord start, SquareCoord end, SquareCoord? rook = null, bool enPassant = false)
+            : this(piece, targetPiece,
+                  start.Index,
+                  end.Index,
+                  rook?.Index,
+                  enPassant)
+        { }
+
+        public Move(PieceType piece, PieceType targetPiece, SquareCoord start, int dRank, int dFile, SquareCoord? rook = null, bool enPassant = false)
+            : this(piece, targetPiece,
+                  start.Index,
+                  start.Index + (dRank * FILES_PER_RANK) + dFile,
+                  rook?.Index,
+                  enPassant)
+        { }
 
         public override string ToString()
         {
-            return $"{Piece.TypeIcon()}{Start}→{End}";
+            return $"{Piece.TypeIcon()}{new SquareCoord(Start)}→{new SquareCoord(End)}";
         }
     }
 
@@ -61,6 +85,7 @@ namespace Chessie.Model
     public readonly struct MoveRecord
     {
         public readonly PieceType Piece;
+        public readonly PieceType CapturedPiece;
         public readonly PieceType? Promotion;
         public readonly SquareCoord Origin;
         public readonly SquareCoord Destination;
@@ -68,12 +93,16 @@ namespace Chessie.Model
         public readonly string Algebraic { get; }
         public readonly string PrettyAlgebraic { get; }
 
-        public MoveRecord(BoardState board, Move move, IEnumerable<Move> availableMoves, PieceType? promotion = null, bool isCheck = false, bool isMate = false)
+        public MoveRecord(Move move, IEnumerable<Move> availableMoves, PieceType? promotion = null, bool isCheck = false, bool isMate = false)
         {
-            Piece = board[move.Start];
-            Origin = move.Start;
-            Destination = move.End;
+            Piece = move.Piece;
+            CapturedPiece = move.CapturedPiece;
+
+            Origin = new SquareCoord(move.Start);
+            Destination = new SquareCoord(move.End);
             Promotion = promotion;
+
+            bool isCapture = (CapturedPiece != PieceType.Empty) || move.EnPassant;
 
             if (move.CastlingRookStart.HasValue)
             {
@@ -81,7 +110,7 @@ namespace Chessie.Model
             }
             else
             {
-                if ((board[move.End] != PieceType.Empty) || move.EnPassant)
+                if (isCapture)
                 {
                     MoveType = move.EnPassant ? MoveType.EnPassant : MoveType.Capture;
                 }
@@ -96,17 +125,12 @@ namespace Chessie.Model
             if (isCheck) MoveType |= MoveType.Check;
 
             // generate algebraic
-            var piece = board[move.Start];
-            var destPiece = board[move.End];
-
-            bool isCapture = (destPiece != PieceType.Empty) || move.EnPassant;
-
             if (!isCapture)
             {
                 // pawn move
-                if (piece.IsPieceType(PieceType.Pawn))
+                if ((Piece & PieceType.Pawn) != 0)
                 {
-                    string endSquare = move.End.ToString();
+                    string endSquare = Destination.ToString();
                     PrettyAlgebraic = Algebraic = promotion.HasValue ? $"{endSquare}={promotion.Value.TypeId()}" : endSquare;
                     return;
                 }
@@ -114,46 +138,47 @@ namespace Chessie.Model
                 // castle
                 if (move.CastlingRookStart.HasValue)
                 {
-                    PrettyAlgebraic = Algebraic = move.CastlingRookStart.Value.IsInFirstRank ? "O-O-O" : "O-O"; // queenside : kingside
+                    // queenside == a file rook
+                    PrettyAlgebraic = Algebraic = ((move.CastlingRookStart.Value & 7) == 0) ? "O-O-O" : "O-O"; // queenside : kingside
                     return;
                 }
             }
             else if (move.EnPassant)
             {
-                PrettyAlgebraic = Algebraic = $"{move.Start.FileId}x{move.End} e.p.";
+                PrettyAlgebraic = Algebraic = $"{Origin.FileId}x{Destination} e.p.";
                 return;
             }
 
             var ambiguousMoves = availableMoves.Where(m =>
                     (m.End == move.End) &&
                     (m.Start != move.Start) &&
-                    (m.Piece == piece))
+                    (m.Piece == move.Piece))
                 .ToList();
 
             var sb = new StringBuilder();
             char? pieceChar = null;
 
-            if (piece.IsPieceType(PieceType.Pawn))
+            if ((Piece & PieceType.Pawn) != 0)
             {
-                sb.Append(move.Start.FileId);
+                sb.Append(Origin.FileId);
             }
             else
             {
-                pieceChar = piece.TypeId();
+                pieceChar = Piece.TypeId();
                 sb.Append(pieceChar.Value);
             }
 
-            if (ambiguousMoves.Any(m => m.Start.Rank == move.Start.Rank))
+            if (ambiguousMoves.Any(m => m.StartRank == move.StartRank))
             {
-                sb.Append(move.Start.FileId);
+                sb.Append(Origin.FileId);
             }
-            if (ambiguousMoves.Any(m => m.Start.File == move.Start.File))
+            if (ambiguousMoves.Any(m => m.StartFile == move.StartFile))
             {
-                sb.Append(move.Start.RankId);
+                sb.Append(Origin.RankId);
             }
 
             if (isCapture) sb.Append('x');
-            sb.Append(move.End.ToString());
+            sb.Append(Destination.ToString());
 
             if (promotion.HasValue)
             {
@@ -173,7 +198,7 @@ namespace Chessie.Model
             Algebraic = sb.ToString();
             if (pieceChar.HasValue)
             {
-                PrettyAlgebraic = Algebraic.Replace(pieceChar.Value, piece.TypeIcon());
+                PrettyAlgebraic = Algebraic.Replace(pieceChar.Value, Piece.TypeIcon());
             }
             else
             {

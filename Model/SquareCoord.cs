@@ -13,6 +13,8 @@ namespace Chessie.Model
         public readonly int Rank;
         public readonly int File;
 
+        public readonly int Index => (Rank << 3) | File;
+
         public readonly bool IsInFirstRank => Rank == MIN_RANK;
         public readonly bool IsInLastRank => Rank == MAX_RANK;
 
@@ -32,13 +34,14 @@ namespace Chessie.Model
             File = file;
         }
 
+        public SquareCoord(int squareIndex)
+        {
+            Rank = squareIndex >> 3;
+            File = squareIndex & 0b111;
+        }
+
         public static bool operator ==(SquareCoord left, SquareCoord right) => (left.Rank == right.Rank) && (left.File == right.File);
         public static bool operator !=(SquareCoord left, SquareCoord right) => (left.Rank != right.Rank) || (left.File != right.File);
-
-        public static SquareCoord operator +(SquareCoord left, SquareCoord right) => new(left.Rank + right.Rank, left.File + right.File);
-        public static SquareCoord operator -(SquareCoord left, SquareCoord right) => new(left.Rank - right.Rank, left.File - right.File);
-
-        public static SquareCoord operator *(SquareCoord coord, int multiplier) => new(coord.Rank * multiplier, coord.File * multiplier);
 
         public override bool Equals([NotNullWhen(true)] object? obj)
         {
@@ -50,13 +53,50 @@ namespace Chessie.Model
             return HashCode.Combine(Rank, File);
         }
 
+        public static SquareCoord operator +(SquareCoord origin, MoveVector move) =>
+            new(origin.Rank + move.DeltaRank, origin.File + move.DeltaFile);
+
         public override string ToString()
         {
             return $"{FileId}{RankId}";
         }
+    }
 
-        public static IEnumerable<SquareCoord> AllSquares { get; } =
-            Enumerable.Range(0, 8)
-            .SelectMany(rank => Enumerable.Range(0, 8).Select(file => new SquareCoord(rank, file))).ToArray();
+    public readonly struct MoveVector
+    {
+        public readonly int DeltaRank;
+        public readonly int DeltaFile;
+        public readonly int DeltaIndex;
+
+        public MoveVector(int deltaRank, int deltaFile)
+        {
+            DeltaRank = deltaRank;
+            DeltaFile = deltaFile;
+            DeltaIndex = (deltaRank * 8) + deltaFile;
+        }
+
+        public static MoveVector operator +(MoveVector left, MoveVector right) =>
+            new(left.DeltaRank + right.DeltaRank, left.DeltaFile + right.DeltaFile);
+
+        public static MoveVector operator *(MoveVector move, int scale) =>
+            new(move.DeltaRank * scale, move.DeltaFile * scale);
+
+        public readonly MoveVector FlipRankDirection() =>
+            new(-DeltaRank, DeltaFile);
+
+        public static readonly MoveVector UP = new(1, 0);
+        public static readonly MoveVector DOWN = new(-1, 0);
+        public static readonly MoveVector RIGHT = new(0, 1);
+        public static readonly MoveVector LEFT = new(0, -1);
+
+        public static readonly MoveVector UP_RIGHT = UP + RIGHT;
+        public static readonly MoveVector UP_LEFT = UP + LEFT;
+        public static readonly MoveVector DOWN_RIGHT = DOWN + RIGHT;
+        public static readonly MoveVector DOWN_LEFT = DOWN + LEFT;
+
+        public override string ToString()
+        {
+            return $"({DeltaRank}, {DeltaFile})";
+        }
     }
 }

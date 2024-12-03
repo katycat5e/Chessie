@@ -8,11 +8,11 @@ namespace Chessie.Model
 {
     public class NotationProcessor
     {
-        public static BoardState CreateBoardFromFEN(string fenCode)
+        public static Board CreateBoardFromFEN(string fenCode)
         {
             string[] fields = fenCode.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
-            var board = new BoardState();
+            var squares = new PieceType[64];
 
             // piece placement
             int rankIdx = SquareCoord.MAX_RANK;
@@ -24,7 +24,7 @@ namespace Chessie.Model
                 {
                     for (int emptyCount = (placement - '0'); emptyCount > 0; emptyCount--)
                     {
-                        board[rankIdx, fileIdx] = PieceType.Empty;
+                        squares[rankIdx * 8 + fileIdx] = PieceType.Empty;
                         fileIdx++;
                     }
                     continue;
@@ -62,14 +62,15 @@ namespace Chessie.Model
                     _ => throw new ArgumentException($"Invalid FEN placement: {placement}"),
                 };
 
-                board[rankIdx, fileIdx] = piece;
+                squares[rankIdx * 8 + fileIdx] = piece;
                 fileIdx++;
             }
 
             // next player
+            bool blackToMove = false;
             if (fields[1] == "b")
             {
-                board.BlackToMove = true;
+                blackToMove = true;
             }
             else if (fields[1] != "w")
             {
@@ -92,8 +93,9 @@ namespace Chessie.Model
                     };
                 }
             }
-            
+
             // en passant square
+            int? enPassantIndex = null;
             if (fields[3] != "-")
             {
                 if (fields[3].Length != 2 || !char.IsLetter(fields[3][0]) || !char.IsDigit(fields[3][1]))
@@ -104,15 +106,16 @@ namespace Chessie.Model
                 int fileIndex = fields[3][0] - 'a';
                 int rankIndex = fields[3][1] - '1';
 
-                board.EnPassantSquare = new SquareCoord(rankIndex, fileIndex);
+                enPassantIndex = rankIndex * 8 + fileIndex;
             }
 
             // halfmoves
 
             // move number
-            board.MoveNumber = int.Parse(fields[5]);
+            int moveNumber = int.Parse(fields[5]);
+            int plyNumber = (moveNumber * 2) + (blackToMove ? 1 : 0);
 
-            return board;
+            return new Board(squares, castling, plyNumber, enPassantIndex, blackToMove);
         }
     }
 }
