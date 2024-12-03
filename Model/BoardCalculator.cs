@@ -14,7 +14,7 @@ namespace Chessie.Model
 
         public static IEnumerable<Move> GetAllValidMoves(Board board, bool forBlack)
         {
-            foreach (var piece in board.EnumeratePieces(forBlack))
+            foreach (var piece in board.GetMap(forBlack).AllPieces())
             {
                 var potentialMoves = GetValidMovesForPiece(board, piece);
                 foreach (var move in potentialMoves)
@@ -43,9 +43,9 @@ namespace Chessie.Model
             {
                 PieceType.Pawn => GetValidPawnMoves(board, piece),
                 PieceType.Knight => GetValidKnightMoves(board, piece),
-                PieceType.Bishop => ProcessLinearMoves(board, piece, _bishopVectors),
-                PieceType.Rook => ProcessLinearMoves(board, piece, _rookVectors),
-                PieceType.Queen => ProcessLinearMoves(board, piece, _allVectors),
+                PieceType.Bishop => ProcessLinearMoves(board, piece, BishopVectors),
+                PieceType.Rook => ProcessLinearMoves(board, piece, RookVectors),
+                PieceType.Queen => ProcessLinearMoves(board, piece, AllVectors),
                 PieceType.King => GetValidKingMoves(board, piece),
                 _ => Enumerable.Empty<Move>(),
             };
@@ -108,20 +108,14 @@ namespace Chessie.Model
 
         private static IEnumerable<Move> GetValidKnightMoves(Board board, LocatedPiece piece)
         {
-            foreach (var move in _knightMoves)
+            foreach (var move in KnightMoves)
             {
-                int dRank = move >> 3;
-                int dFile = move & 7;
-
-                if ((piece.Rank + dRank > MAX_COORD) ||
-                    (piece.Rank + dRank < MIN_COORD) ||
-                    (piece.File + dFile > MAX_COORD) ||
-                    (piece.File + dFile < MIN_COORD))
+                if (!(new SquareCoord(piece.Location) + move).IsValidSquare)
                 {
                     continue;
                 }
 
-                var dest = piece.Location + move;
+                var dest = piece.Location + move.DeltaIndex;
                 var target = board[dest];
                 if ((target == PieceType.Empty) || piece.Piece.IsOpponentPiece(target))
                 {
@@ -130,44 +124,36 @@ namespace Chessie.Model
             }
         }
 
-        private static readonly int[] _knightMoves =
-            new (int, int)[]
+        public static readonly MoveVector[] KnightMoves =
         {
-            (1, 2),  (-1, 2),
-            (1, -2), (-1, -2),
-            (2, 1),  (-2, 1),
-            (2, -1), (-2, -1),
-        }
-        .Select(rf => rf.Item1 * 8 + rf.Item2).ToArray();
-
-        private static readonly int[] _bishopVectors =
-        {
-            UP + RIGHT, DOWN + RIGHT, DOWN + LEFT, UP + LEFT,
+            new(1, 2),  new(-1, 2),
+            new(1, -2), new(-1, -2),
+            new(2, 1),  new(-2, 1),
+            new(2, -1), new(-2, -1),
         };
 
-        private static readonly int[] _rookVectors =
+        public static readonly MoveVector[] BishopVectors =
         {
-            UP, RIGHT, DOWN, LEFT,
+            MoveVector.UP_RIGHT, MoveVector.DOWN_RIGHT, MoveVector.DOWN_LEFT, MoveVector.UP_LEFT,
         };
 
-        private static readonly int[] _allVectors = _bishopVectors.Concat(_rookVectors).ToArray();
+        public static readonly MoveVector[] RookVectors =
+        {
+            MoveVector.UP, MoveVector.RIGHT, MoveVector.DOWN, MoveVector.LEFT,
+        };
+
+        public static readonly MoveVector[] AllVectors = BishopVectors.Concat(RookVectors).ToArray();
 
         private static IEnumerable<Move> GetValidKingMoves(Board board, LocatedPiece piece)
         {
-            foreach (var move in _allVectors)
+            foreach (var move in AllVectors)
             {
-                int dRank = move >> 3;
-                int dFile = move & 7;
-
-                if ((piece.Rank + dRank > MAX_COORD) ||
-                    (piece.Rank + dRank < MIN_COORD) ||
-                    (piece.File + dFile > MAX_COORD) ||
-                    (piece.File + dFile < MIN_COORD))
+                if (!(new SquareCoord(piece.Location) + move).IsValidSquare)
                 {
                     continue;
                 }
 
-                int dest = piece.Location + move;
+                int dest = piece.Location + move.DeltaIndex;
                 var target = board[dest];
                 if (target == PieceType.Empty || piece.Piece.IsOpponentPiece(target))
                 {
@@ -176,26 +162,20 @@ namespace Chessie.Model
             }
         }
 
-        private static IEnumerable<Move> ProcessLinearMoves(Board board, LocatedPiece piece, IEnumerable<int> vectors)
+        private static IEnumerable<Move> ProcessLinearMoves(Board board, LocatedPiece piece, IEnumerable<MoveVector> vectors)
         {
             foreach (var vector in vectors)
             {
-                int move = vector;
+                MoveVector move = vector;
 
                 for (int offset = 1; offset <= 7; offset++)
                 {
-                    int dRank = move >> 3;
-                    int dFile = move & 7;
-
-                    if ((piece.Rank + dRank > MAX_COORD) ||
-                        (piece.Rank + dRank < MIN_COORD) ||
-                        (piece.File + dFile > MAX_COORD) ||
-                        (piece.File + dFile < MIN_COORD))
+                    if (!(new SquareCoord(piece.Location) + move).IsValidSquare)
                     {
                         continue;
                     }
 
-                    int dest = piece.Location + move;
+                    int dest = piece.Location + move.DeltaIndex;
                     var target = board[dest];
                     if (target == PieceType.Empty)
                     {
@@ -228,14 +208,23 @@ namespace Chessie.Model
         {
             var kingLocation = board.GetMap(forBlack).King;
 
-            foreach (var piece in board.GetOpponentMap(forBlack).AllPieces())
+            var bitboards = board.GetThreatMaps(forBlack);
+
+            //foreach (var piece in board.GetOpponentMap(forBlack).AllPieces())
+            //{
+            //    var potentialMoves = GetPotentialMovesForPiece(board, piece);
+            //    if (potentialMoves.Any(move => move.End == kingLocation))
+            //    {
+            //        checkLocation = kingLocation;
+            //        return true;
+            //    }
+            //}
+
+            ulong flag = bitboards.Threats & (1ul << kingLocation);
+            if (flag != 0)
             {
-                var potentialMoves = GetPotentialMovesForPiece(board, piece);
-                if (potentialMoves.Any(move => move.End == kingLocation))
-                {
-                    checkLocation = kingLocation;
-                    return true;
-                }
+                checkLocation = kingLocation;
+                return true;
             }
 
             checkLocation = null;

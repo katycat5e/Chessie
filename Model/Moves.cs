@@ -51,17 +51,17 @@ namespace Chessie.Model
 
         public Move(PieceType piece, PieceType targetPiece, SquareCoord start, SquareCoord end, SquareCoord? rook = null, bool enPassant = false)
             : this(piece, targetPiece,
-                  Board.SquareIndex(start),
-                  Board.SquareIndex(end),
-                  Board.SquareIndex(rook),
+                  start.Index,
+                  end.Index,
+                  rook?.Index,
                   enPassant)
         { }
 
         public Move(PieceType piece, PieceType targetPiece, SquareCoord start, int dRank, int dFile, SquareCoord? rook = null, bool enPassant = false)
             : this(piece, targetPiece,
-                  Board.SquareIndex(start),
-                  Board.SquareIndex(start) + (dRank * FILES_PER_RANK) + dFile,
-                  Board.SquareIndex(rook),
+                  start.Index,
+                  start.Index + (dRank * FILES_PER_RANK) + dFile,
+                  rook?.Index,
                   enPassant)
         { }
 

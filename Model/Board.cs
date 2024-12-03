@@ -45,32 +45,6 @@ namespace Chessie.Model
         public PieceMap GetOpponentMap(PieceType color) => (color & PieceType.Black) != 0 ? WhitePieces : BlackPieces;
         public PieceMap GetOpponentMap(bool forBlack) => forBlack ? WhitePieces : BlackPieces;
 
-        public IEnumerable<LocatedPiece> EnumeratePieces(bool forBlack)
-        {
-            return forBlack ? BlackPieces.AllPieces() : WhitePieces.AllPieces();
-        }
-
-        private ulong _threatsForWhite = 0;
-        private ulong _threatsForBlack = 0;
-
-        public ulong ThreatsForWhite
-        {
-            get
-            {
-                if (_threatsForWhite == 0) GenerateThreatMaps();
-                return _threatsForWhite;
-            }
-        }
-
-        public ulong ThreatsForBlack
-        {
-            get
-            {
-                if (_threatsForBlack == 0) GenerateThreatMaps();
-                return _threatsForBlack;
-            }
-        }
-
         public event Action? StateChanged;
 
         public Board()
@@ -193,8 +167,172 @@ namespace Chessie.Model
             var undoEntry = new UndoRecord(oldCastleState, oldPassantSquare, primaryUndo, secondaryUndo, tertiaryUndo);
             _moveHistory.Push(undoEntry);
 
+            ClearBitboardCache();
+
             StateChanged?.Invoke();
         }
+
+
+        #region Bitboards
+
+        private BitBoard? _blackBitboards = null;
+        private BitBoard? _whiteBitboards = null;
+
+        private void ClearBitboardCache()
+        {
+            _blackBitboards = null;
+            _whiteBitboards = null;
+        }
+
+        public BitBoard GetThreatMaps(bool forBlack)
+        {
+            var cached = forBlack ? _blackBitboards : _whiteBitboards;
+            if (cached.HasValue)
+            {
+                return cached.Value;
+            }
+
+            ulong threatMap = 0;
+            ulong checkMap = 0;
+
+            bool opponentIsBlack = !forBlack;
+            PieceType ownColor = forBlack ? PieceType.Black : PieceType.White;
+            PieceType opponentColor = forBlack ? PieceType.White : PieceType.Black;
+            var opponentPieces = GetOpponentMap(forBlack).AllPieces();
+
+            MoveVector[] potentialMoves;
+
+            foreach (var enemy in opponentPieces)
+            {
+                switch (enemy.Piece & ~PieceType.ColorMask)
+                {
+                    // Simple moving pieces (non-slider)
+                    case PieceType.Pawn:
+                        potentialMoves = opponentIsBlack ? BLACK_PAWN_THREATS : WHITE_PAWN_THREATS;
+                        goto checkSimpleThreat;
+
+                    case PieceType.Knight:
+                        potentialMoves = BoardCalculator.KnightMoves;
+                        goto checkSimpleThreat;
+
+                    case PieceType.King:
+                        potentialMoves = BoardCalculator.AllVectors;
+
+                    checkSimpleThreat:
+                        foreach (var move in potentialMoves)
+                        {
+                            if (!ValidMove(enemy.Location, move))
+                            {
+                                continue;
+                            }
+
+                            int target = enemy.Location + move.DeltaIndex;
+                            ulong bit = 1ul << target;
+                            threatMap |= bit;
+                            checkMap |= bit;
+                        }
+                        break;
+
+                    // Slider pieces
+                    case PieceType.Bishop:
+                        potentialMoves = BoardCalculator.BishopVectors;
+                        goto checkSliderThreat;
+
+                    case PieceType.Rook:
+                        potentialMoves = BoardCalculator.RookVectors;
+                        goto checkSliderThreat;
+
+                    case PieceType.Queen:
+                        potentialMoves = BoardCalculator.AllVectors;
+
+                    checkSliderThreat:
+                        foreach (var vector in potentialMoves)
+                        {
+                            bool hitMyKing = false;
+                            var move = vector;
+
+                            for (int scale = 1; scale <= 7; scale++)
+                            {
+                                if (!ValidMove(enemy.Location, move))
+                                {
+                                    break;
+                                }
+
+                                int target = enemy.Location + move.DeltaIndex;
+
+                                ulong bit = 1ul << target;
+                                if (!hitMyKing) threatMap |= bit;
+                                checkMap |= bit;
+
+                                if ((Squares[target] & PieceType.PieceMask) != 0)
+                                {
+                                    // piece is blocking
+                                    break;
+                                }
+                                else if (Squares[target] == (PieceType.King | ownColor))
+                                {
+                                    // intersecting own king, block threat but allow check to pass thru
+                                    hitMyKing = true;
+                                }
+
+                                move += vector;
+                            }
+                        }
+                        break;
+                }
+            }
+
+            var result = new BitBoard(threatMap, checkMap);
+            if (forBlack)
+            {
+                _blackBitboards = result;
+            }
+            else
+            {
+                _whiteBitboards = result;
+            }
+            return result;
+        }
+
+        private static bool ValidMove(int start, MoveVector move)
+        {
+            int startRank = start >> 3;
+            int startFile = start & 7;
+
+            int endRank = startRank + move.DeltaRank;
+            int endFile = startFile + move.DeltaFile;
+
+            return (endRank >= 0) && (endRank <= 7) && (endFile >= 0) && (endFile <= 7);
+        }
+
+        private static readonly MoveVector[] WHITE_PAWN_THREATS = { MoveVector.UP_LEFT, MoveVector.UP_RIGHT };
+        private static readonly MoveVector[] BLACK_PAWN_THREATS = { MoveVector.DOWN_LEFT, MoveVector.DOWN_RIGHT };
+
+        #endregion
+
+
+        private static readonly PieceType[] START_STATE =
+        {
+            Piece.R, Piece.N, Piece.B, Piece.Q, Piece.K, Piece.B, Piece.N, Piece.R,
+            Piece.P, Piece.P, Piece.P, Piece.P, Piece.P, Piece.P, Piece.P, Piece.P,
+
+            Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X,
+            Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X,
+            Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X,
+            Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X,
+
+            Piece.p, Piece.p, Piece.p, Piece.p, Piece.p, Piece.p, Piece.p, Piece.p,
+            Piece.r, Piece.n, Piece.b, Piece.q, Piece.k, Piece.b, Piece.n, Piece.r,
+        };
+
+        // rook start position indices
+        private static readonly int WQRookStart = 0;
+        private static readonly int WKRookStart = 7;
+        private static readonly int BQRookStart = 56;
+        private static readonly int BKRookStart = 63;
+
+
+        #region Undo Stack
 
         public void UndoLastMove()
         {
@@ -209,6 +347,8 @@ namespace Chessie.Model
 
             BlackToMove = !BlackToMove;
             PlyNumber--;
+
+            ClearBitboardCache();
 
             StateChanged?.Invoke();
         }
@@ -236,63 +376,6 @@ namespace Chessie.Model
                     GetMap(entry.Piece).RemovePiece(entry.Piece, entry.OriginalIndex);
                     GetMap(entry.Piece).AddPiece(PieceType.Pawn, entry.OriginalIndex);
                     break;
-            }
-        }
-
-        private static void GenerateThreatMaps()
-        {
-
-        }
-
-        public static int SquareIndex(SquareCoord coord) => (coord.Rank << 3) | coord.File;
-
-        public static int? SquareIndex(SquareCoord? coord) => coord.HasValue ? ((coord.Value.Rank << 3) | coord.Value.File) : null;
-
-        private static readonly PieceType[] START_STATE =
-        {
-            Piece.R, Piece.N, Piece.B, Piece.Q, Piece.K, Piece.B, Piece.N, Piece.R,
-            Piece.P, Piece.P, Piece.P, Piece.P, Piece.P, Piece.P, Piece.P, Piece.P,
-
-            Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X,
-            Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X,
-            Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X,
-            Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X, Piece.X,
-
-            Piece.p, Piece.p, Piece.p, Piece.p, Piece.p, Piece.p, Piece.p, Piece.p,
-            Piece.r, Piece.n, Piece.b, Piece.q, Piece.k, Piece.b, Piece.n, Piece.r,
-        };
-
-        // rook start position indices
-        private static readonly int WQRookStart = 0;
-        private static readonly int WKRookStart = 7;
-        private static readonly int BQRookStart = 56;
-        private static readonly int BKRookStart = 63;
-
-        public string DebugView
-        {
-            get
-            {
-                var chars = new char[72];
-
-                for (int rank = 7; rank >= 0; rank--)
-                {
-                    for (int file = 0; file <= 8; file++)
-                    {
-                        int stringIndex = ((7 - rank) * 9) + file;
-
-                        if (file == 8)
-                        {
-                            chars[stringIndex] = (stringIndex == 71) ? '\0' : '\n';
-                        }
-                        else
-                        {
-                            int squareIndex = (rank << 3) | file;
-                            chars[stringIndex] = Squares[squareIndex].FenId();
-                        }
-                    }
-                }
-
-                return new string(chars);
             }
         }
 
@@ -356,6 +439,37 @@ namespace Chessie.Model
             Captured,
             Promoted,
         }
+
+        #endregion
+
+
+        public string DebugView
+        {
+            get
+            {
+                var chars = new char[72];
+
+                for (int rank = 7; rank >= 0; rank--)
+                {
+                    for (int file = 0; file <= 8; file++)
+                    {
+                        int stringIndex = ((7 - rank) * 9) + file;
+
+                        if (file == 8)
+                        {
+                            chars[stringIndex] = (stringIndex == 71) ? '\0' : '\n';
+                        }
+                        else
+                        {
+                            int squareIndex = (rank << 3) | file;
+                            chars[stringIndex] = Squares[squareIndex].FenId();
+                        }
+                    }
+                }
+
+                return new string(chars);
+            }
+        }
     }
 
 
@@ -373,5 +487,17 @@ namespace Chessie.Model
         AllWhite = WhiteKingside | WhiteQueenside,
         AllBlack = BlackKingside | BlackQueenside,
         All = AllWhite | AllBlack,
+    }
+
+    public readonly struct BitBoard
+    {
+        public readonly ulong Threats;
+        public readonly ulong KingThreats;
+
+        public BitBoard(ulong threats, ulong kingThreats)
+        {
+            Threats = threats;
+            KingThreats = kingThreats;
+        }
     }
 }

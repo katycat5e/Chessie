@@ -9,8 +9,9 @@ namespace Chessie.Model
         const int MAX_PIECES = 8;
 
         public readonly PieceType Color;
-        private readonly int[,] _locations = new int[N_TYPES, MAX_PIECES];
+        private readonly int[][] _locations = new int[N_TYPES][];
         private readonly int[] _pieceCounts = new int[N_TYPES];
+        private int _totalCount = 1;
 
         public int King { get; private set; }
 
@@ -33,11 +34,19 @@ namespace Chessie.Model
         public PieceMap(PieceType color)
         {
             Color = color;
+            for (int i = 0; i < N_TYPES; i++)
+            {
+                _locations[i] = new int[MAX_PIECES];
+            }
         }
 
         public PieceMap(PieceType[] squares, PieceType color)
         {
             Color = color;
+            for (int i = 0; i < N_TYPES; i++)
+            {
+                _locations[i] = new int[MAX_PIECES];
+            }
             InitFromBoard(squares);
         }
 
@@ -69,8 +78,9 @@ namespace Chessie.Model
                 throw new IndexOutOfRangeException("Too many pieces of type " + piece.ToString());
             }
 
-            _locations[index, _pieceCounts[index]] = location;
+            _locations[index][_pieceCounts[index]] = location;
             _pieceCounts[index]++;
+            _totalCount++;
 
             BustBitBoard();
         }
@@ -88,7 +98,7 @@ namespace Chessie.Model
 
             int typeIndex = TypeIndex(piece);
             int pieceIndex = PieceIndex(typeIndex, origin);
-            _locations[typeIndex, pieceIndex] = destination;
+            _locations[typeIndex][pieceIndex] = destination;
 
             BustBitBoard();
         }
@@ -99,8 +109,9 @@ namespace Chessie.Model
             int pieceIndex = PieceIndex(typeIndex, location);
 
             int lastPieceIndex = _pieceCounts[typeIndex] - 1;
-            _locations[typeIndex, pieceIndex] = _locations[typeIndex, lastPieceIndex];
+            _locations[typeIndex][pieceIndex] = _locations[typeIndex][lastPieceIndex];
             _pieceCounts[typeIndex]--;
+            _totalCount--;
 
             BustBitBoard();
         }
@@ -109,7 +120,7 @@ namespace Chessie.Model
         {
             for (int i = 0; i < _pieceCounts[typeIndex]; i++)
             {
-                if (location == _locations[typeIndex, i]) return i;
+                if (location == _locations[typeIndex][i]) return i;
             }
             throw new ArgumentException("piece not found");
         }
@@ -149,7 +160,7 @@ namespace Chessie.Model
 
         public IList<LocatedPiece> AllPieces()
         {
-            var result = new LocatedPiece[16];
+            var result = new LocatedPiece[_totalCount];
             int index = 0;
 
             for (int typeIdx = 0; typeIdx < N_TYPES; typeIdx++)
@@ -158,14 +169,13 @@ namespace Chessie.Model
 
                 for (int i = 0; i < _pieceCounts[typeIdx]; i++)
                 {
-                    result[index] = new LocatedPiece(type, _locations[typeIdx, i]);
+                    result[index] = new LocatedPiece(type, _locations[typeIdx][i]);
                     index++;
                 }
             }
 
             result[index] = new LocatedPiece(PieceType.King | Color, King);
-            
-            return (index == 16) ? result : new ArraySegment<LocatedPiece>(result, 0, index);
+            return result;
         }
     }
 

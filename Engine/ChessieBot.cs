@@ -125,28 +125,26 @@ namespace Chessie.Engine
             int eval = MaterialEval(board);
             eval += PST_Eval(board);
 
-            if (BoardCalculator.IsMate(board, board.BlackToMove))
+            if (BoardCalculator.IsCheck(board, board.BlackToMove, out _))
             {
-                return board.BlackToMove ? MATE_PENALTY : -MATE_PENALTY;
+                if (BoardCalculator.IsMate(board, board.BlackToMove))
+                {
+                    return board.BlackToMove ? MATE_PENALTY : -MATE_PENALTY;
+                }
             }
 
             return eval;
-        }
-
-        private static int EvalSignAdjust(int eval, bool forBlack)
-        {
-            return forBlack ? -eval : eval;
         }
 
         // returns white's material advantage
         private static int MaterialEval(Board board)
         {
             int total = 0;
-            foreach (var piece in board.EnumeratePieces(false))
+            foreach (var piece in board.GetMap(false).AllPieces())
             {
                 total += PieceValue(piece.Piece);
             }
-            foreach (var piece in board.EnumeratePieces(true))
+            foreach (var piece in board.GetMap(true).AllPieces())
             {
                 total += PieceValue(piece.Piece);
             }
@@ -185,11 +183,11 @@ namespace Chessie.Engine
         private static int PST_Eval(Board board)
         {
             int eval = 0;
-            foreach (var whitePiece in board.EnumeratePieces(false))
+            foreach (var whitePiece in board.GetMap(false).AllPieces())
             {
                 eval += PieceSquareTables.Evaluate(whitePiece);
             }
-            foreach (var blackPiece in board.EnumeratePieces(true))
+            foreach (var blackPiece in board.GetMap(true).AllPieces())
             {
                 eval -= PieceSquareTables.Evaluate(blackPiece);
             }
