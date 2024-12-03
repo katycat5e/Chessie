@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Chessie.Model
+namespace Chessie.Core.Model
 {
     public class ObservableStack<T> : Stack<T>, INotifyCollectionChanged
     {

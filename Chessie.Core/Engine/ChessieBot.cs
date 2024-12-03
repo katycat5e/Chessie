@@ -1,7 +1,7 @@
-﻿using Chessie.Model;
+﻿using Chessie.Core.Model;
 using System.Diagnostics;
 
-namespace Chessie.Engine
+namespace Chessie.Core.Engine
 {
     public static class ChessieBot
     {

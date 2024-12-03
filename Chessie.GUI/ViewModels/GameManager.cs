@@ -1,10 +1,10 @@
-﻿using Chessie.Engine;
+﻿using Chessie.Core.Engine;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Windows;
 using System.Windows.Threading;
 
-namespace Chessie.Model
+namespace Chessie.ViewModels
 {
     using MoveDictionary = Dictionary<int, Move>;
 

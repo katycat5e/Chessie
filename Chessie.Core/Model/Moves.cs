@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
-namespace Chessie.Model
+namespace Chessie.Core.Model
 {
     public readonly struct Move
     {

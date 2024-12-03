@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.9.34607.119
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Chessie", "Chessie.csproj", "{4821728E-EADC-47C4-A88E-A4AA39DAA072}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Chessie.GUI", "Chessie.GUI\Chessie.GUI.csproj", "{4821728E-EADC-47C4-A88E-A4AA39DAA072}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Chessie.Core", "Chessie.Core\Chessie.Core.csproj", "{01782EC1-EC15-45AE-A70E-FCB746A0ADC7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{4821728E-EADC-47C4-A88E-A4AA39DAA072}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4821728E-EADC-47C4-A88E-A4AA39DAA072}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4821728E-EADC-47C4-A88E-A4AA39DAA072}.Release|Any CPU.Build.0 = Release|Any CPU
+		{01782EC1-EC15-45AE-A70E-FCB746A0ADC7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{01782EC1-EC15-45AE-A70E-FCB746A0ADC7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{01782EC1-EC15-45AE-A70E-FCB746A0ADC7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{01782EC1-EC15-45AE-A70E-FCB746A0ADC7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

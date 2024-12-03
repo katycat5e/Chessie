@@ -8,4 +8,12 @@
     <UseWPF>true</UseWPF>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Chessie.Core\Chessie.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Chessie.Core.Model" />
+  </ItemGroup>
+
 </Project>

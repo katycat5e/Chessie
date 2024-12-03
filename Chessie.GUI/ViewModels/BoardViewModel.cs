@@ -1,4 +1,4 @@
-﻿using Chessie.Model;
+﻿using Chessie.Core.Model;
 using System.Windows;
 
 namespace Chessie.ViewModels

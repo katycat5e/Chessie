@@ -1,4 +1,4 @@
-﻿using Chessie.Model;
+﻿using Chessie.Core.Model;
 using Chessie.ViewModels;
 using System.Diagnostics;
 using System.Windows;
@@ -90,6 +90,17 @@ namespace Chessie
             {
                 Game.MakeAIMove();
             }
+        }
+
+        private void RunPerft_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new PerftDialog()
+            {
+                Owner = this,
+                Board = Game.Board,
+            };
+
+            dialog.ShowDialog();
         }
     }
 }

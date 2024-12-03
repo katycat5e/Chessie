@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 
-namespace Chessie.Model
+namespace Chessie.Core.Model
 {
     public static class BoardCalculator
     {

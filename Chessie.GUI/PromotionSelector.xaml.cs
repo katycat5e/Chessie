@@ -1,4 +1,4 @@
-﻿using Chessie.Model;
+﻿using Chessie.Core.Model;
 using System;
 using System.Collections.Generic;
 using System.Linq;

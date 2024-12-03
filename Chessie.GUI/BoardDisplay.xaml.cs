@@ -1,4 +1,4 @@
-﻿using Chessie.Model;
+﻿using Chessie.Core.Model;
 using Chessie.ViewModels;
 using System;
 using System.Collections.Generic;
