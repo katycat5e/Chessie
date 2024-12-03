@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Text;
 
 namespace Chessie.Model
 {
@@ -68,6 +69,18 @@ namespace Chessie.Model
         public override string ToString()
         {
             return $"{Piece.TypeIcon()}{new SquareCoord(Start)}→{new SquareCoord(End)}";
+        }
+
+        public override bool Equals([NotNullWhen(true)] object? obj)
+        {
+            if (obj is not Move other) return false;
+
+            return (Piece == other.Piece) && (Start == other.Start) && (End == other.End);
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(Piece, Start, End);
         }
     }
 

@@ -20,7 +20,8 @@ namespace Chessie.Engine
 
             var watch = Stopwatch.StartNew();
 
-            var nextMoves = BoardCalculator.GetAllValidMoves(board, playingAsBlack);
+            var nextMoves = BoardCalculator.GetAllValidMoves(board, playingAsBlack).ToList();
+            MoveOrdering.Sort(board, nextMoves);
 
             var sortedMoves = new List<RankedMove>();
             foreach (var move in nextMoves)
@@ -142,42 +143,17 @@ namespace Chessie.Engine
             int total = 0;
             foreach (var piece in board.GetMap(false).AllPieces())
             {
-                total += PieceValue(piece.Piece);
+                total += Piece.SignedValue(piece.Piece);
             }
             foreach (var piece in board.GetMap(true).AllPieces())
             {
-                total += PieceValue(piece.Piece);
+                total += Piece.SignedValue(piece.Piece);
             }
             return total;
         }
 
-        const int PAWN_VALUE = 100;
-        const int KNIGHT_VALUE = 300;
-        const int BISHOP_VALUE = 300;
-        const int ROOK_VALUE = 500;
-        const int QUEEN_VALUE = 900;
-
-        const int CHECK_PENALTY = QUEEN_VALUE * 4;
+        const int CHECK_PENALTY = Piece.QUEEN_VALUE * 4;
         const int MATE_PENALTY = int.MaxValue;
-
-        private static int PieceValue(PieceType piece)
-        {
-            return piece switch
-            {
-                Piece.P => PAWN_VALUE,
-                Piece.N => KNIGHT_VALUE,
-                Piece.B => BISHOP_VALUE,
-                Piece.R => ROOK_VALUE,
-                Piece.Q => QUEEN_VALUE,
-
-                Piece.p => -PAWN_VALUE,
-                Piece.n => -KNIGHT_VALUE,
-                Piece.b => -BISHOP_VALUE,
-                Piece.r => -ROOK_VALUE,
-                Piece.q => -QUEEN_VALUE,
-                _ => 0,
-            };
-        }
 
         // returns white's position advantage
         private static int PST_Eval(Board board)

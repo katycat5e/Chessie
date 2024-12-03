@@ -115,5 +115,44 @@ namespace Chessie.Model
                 _ => throw new NotImplementedException()
             };
         }
+
+        public const int PAWN_VALUE = 100;
+        public const int KNIGHT_VALUE = 300;
+        public const int BISHOP_VALUE = 300;
+        public const int ROOK_VALUE = 500;
+        public const int QUEEN_VALUE = 900;
+
+        public static int SignedValue(PieceType piece)
+        {
+            return piece switch
+            {
+                P => PAWN_VALUE,
+                N => KNIGHT_VALUE,
+                B => BISHOP_VALUE,
+                R => ROOK_VALUE,
+                Q => QUEEN_VALUE,
+
+                p => -PAWN_VALUE,
+                n => -KNIGHT_VALUE,
+                b => -BISHOP_VALUE,
+                r => -ROOK_VALUE,
+                q => -QUEEN_VALUE,
+                _ => 0,
+            };
+        }
+
+        public static int UnsignedValue(PieceType piece)
+        {
+            return (piece & PieceType.PieceMask) switch
+            {
+                PieceType.Pawn => PAWN_VALUE,
+                PieceType.Knight => KNIGHT_VALUE,
+                PieceType.Bishop => BISHOP_VALUE,
+                PieceType.Rook => ROOK_VALUE,
+                PieceType.Queen => QUEEN_VALUE,
+
+                _ => 0,
+            };
+        }
     }
 }
