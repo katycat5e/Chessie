@@ -208,12 +208,6 @@ namespace Chessie.ViewModels
             return (squareState & ownColor) != 0;
         }
 
-        public static bool IsPromotion(PieceType piece, int destination)
-        {
-            int rank = destination >> 3;
-            return ((piece & PieceType.Pawn) != 0) && (rank == SquareCoord.MIN_RANK || rank == SquareCoord.MAX_RANK);
-        }
-
         public void MakeMove(Move move, PieceType? promotion = null)
         {
             MakeMoveInternal(move, promotion, HumanMoves.Values);

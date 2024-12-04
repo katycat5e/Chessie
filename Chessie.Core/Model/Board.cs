@@ -109,10 +109,15 @@ namespace Chessie.Core.Model
             // castle
             else if (move.CastlingRookStart.HasValue)
             {
-                var rook = Squares[move.CastlingRookStart.Value];
-                Squares[move.CastlingRookStart.Value] = PieceType.Empty;
-                Squares[move.CastlingRookEnd] = rook;
-                secondaryUndo = UndoEntry.Move(rook, move.CastlingRookStart.Value, move.CastlingRookEnd, true);
+                int rookStart = move.CastlingRookStart.Value;
+                int rookEnd = move.CastlingRookEnd;
+
+                var rook = Squares[rookStart];
+                Squares[rookStart] = PieceType.Empty;
+                Squares[rookEnd] = rook;
+                secondaryUndo = UndoEntry.Move(rook, rookStart, rookEnd, true);
+
+                GetMap(rook).MovePiece(rook, rookStart, rookEnd);
             }
 
             int? oldPassantSquare = EnPassantSquare;
@@ -160,6 +165,25 @@ namespace Chessie.Core.Model
                     CastleState &= ~CastleState.BlackQueenside;
                 }
             }
+            else if((capture & PieceType.Rook) != 0)
+            {
+                if (move.End == WKRookStart)
+                {
+                    CastleState &= ~CastleState.WhiteKingside;
+                }
+                else if (move.End == WQRookStart)
+                {
+                    CastleState &= ~CastleState.WhiteQueenside;
+                }
+                else if (move.End == BKRookStart)
+                {
+                    CastleState &= ~CastleState.BlackKingside;
+                }
+                else if (move.End == BQRookStart)
+                {
+                    CastleState &= ~CastleState.BlackQueenside;
+                }
+            }
 
             BlackToMove = !BlackToMove;
             PlyNumber++;
@@ -175,6 +199,7 @@ namespace Chessie.Core.Model
 
         #region Bitboards
 
+        private ulong? _allPiecesBitBoard = null;
         private BitBoard? _blackBitboards = null;
         private BitBoard? _whiteBitboards = null;
 
@@ -182,14 +207,20 @@ namespace Chessie.Core.Model
         {
             _blackBitboards = null;
             _whiteBitboards = null;
+            _allPiecesBitBoard = null;
         }
 
-        public BitBoard GetThreatMaps(bool forBlack)
+        public BitBoard GetBitboards(bool forBlack)
         {
             var cached = forBlack ? _blackBitboards : _whiteBitboards;
             if (cached.HasValue)
             {
                 return cached.Value;
+            }
+
+            if (!_allPiecesBitBoard.HasValue)
+            {
+                _allPiecesBitBoard = RegenPieceMap();
             }
 
             ulong threatMap = 0;
@@ -282,7 +313,7 @@ namespace Chessie.Core.Model
                 }
             }
 
-            var result = new BitBoard(threatMap, checkMap);
+            var result = new BitBoard(_allPiecesBitBoard.Value, threatMap, checkMap);
             if (forBlack)
             {
                 _blackBitboards = result;
@@ -290,6 +321,20 @@ namespace Chessie.Core.Model
             else
             {
                 _whiteBitboards = result;
+            }
+            return result;
+        }
+
+        private ulong RegenPieceMap()
+        {
+            ulong result = 0;
+            foreach (var piece in WhitePieces.AllPieces())
+            {
+                result |= (1ul << piece.Location);
+            }
+            foreach (var piece in BlackPieces.AllPieces())
+            {
+                result |= (1ul << piece.Location);
             }
             return result;
         }
@@ -491,11 +536,13 @@ namespace Chessie.Core.Model
 
     public readonly struct BitBoard
     {
+        public readonly ulong AllPieces;
         public readonly ulong Threats;
         public readonly ulong KingThreats;
 
-        public BitBoard(ulong threats, ulong kingThreats)
+        public BitBoard(ulong allPieces, ulong threats, ulong kingThreats)
         {
+            AllPieces = allPieces;
             Threats = threats;
             KingThreats = kingThreats;
         }

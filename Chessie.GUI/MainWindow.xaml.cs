@@ -46,7 +46,7 @@ namespace Chessie
                 var piece = Game.Board[move.Start];
 
                 PieceType? promotion = null;
-                if (GameManager.IsPromotion(piece, move.End))
+                if (BoardCalculator.IsPromotion(piece, move.End))
                 {
                     promotion = PromotionSelector.PromptPromotion(this, piece & PieceType.ColorMask);
                 }

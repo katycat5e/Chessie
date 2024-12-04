@@ -67,7 +67,7 @@ namespace Chessie.Core.Model
 
             // initial 2-square jump
             int initialRank = ((piece.Piece & PieceType.Black) != 0) ? MAX_COORD - 1 : MIN_COORD + 1;
-            if (piece.Rank == initialRank)
+            if ((piece.Rank == initialRank) && (board[piece.Location + rankMovement] == PieceType.Empty))
             {
                 forwardSquare = piece.Location + rankMovement * 2;
                 if (board[forwardSquare] == PieceType.Empty)
@@ -144,8 +144,73 @@ namespace Chessie.Core.Model
 
         public static readonly MoveVector[] AllVectors = BishopVectors.Concat(RookVectors).ToArray();
 
+        private readonly struct CastleMasks
+        {
+            public readonly CastleState QueensideStateMask;
+            public readonly CastleState KingsideStateMask;
+
+            public readonly ulong QueensideClearance;
+            public readonly ulong KingsideClearance;
+
+            public readonly ulong QueensideThreatMask;
+            public readonly ulong KingsideThreatMask;
+
+            public CastleMasks(
+                CastleState queensideStateMask, CastleState kingsideStateMask,
+                ulong queensideClearance, ulong kingsideClearance,
+                ulong queensideThreatMask, ulong kingsideThreatMask)
+            {
+                QueensideStateMask = queensideStateMask;
+                KingsideStateMask = kingsideStateMask;
+                QueensideClearance = queensideClearance;
+                KingsideClearance = kingsideClearance;
+                QueensideThreatMask = queensideThreatMask;
+                KingsideThreatMask = kingsideThreatMask;
+            }
+        }
+
+        private static readonly CastleMasks WhiteCastleMasks = new(
+            CastleState.WhiteQueenside, CastleState.WhiteKingside,
+            0b0000_1110, 0b0110_0000,
+            0b0001_1100, 0b0111_0000
+        );
+
+        private static readonly CastleMasks BlackCastleMasks = new(
+            CastleState.BlackQueenside, CastleState.BlackKingside,
+            0b0000_1110ul << 56, 0b0110_0000ul << 56,
+            0b0001_1100ul << 56, 0b0111_0000ul << 56
+        );
+
+        private const int CASTLE_MOVEMENT = 2;
+        private const int KINGSIDE_ROOK_OFFSET = 3;
+        private const int QUEENSIDE_ROOK_OFFSET = -4;
+
         private static IEnumerable<Move> GetValidKingMoves(Board board, LocatedPiece piece)
         {
+            CastleMasks masks = board.BlackToMove ? BlackCastleMasks : WhiteCastleMasks;
+
+            var bitboards = board.GetBitboards(board.BlackToMove);
+
+            // kingside castle
+            if (((board.CastleState & masks.KingsideStateMask) != CastleState.None) && ((bitboards.Threats & masks.KingsideThreatMask) == 0))
+            {
+                if ((bitboards.AllPieces & masks.KingsideClearance) == 0)
+                {
+                    int rook = piece.Location + KINGSIDE_ROOK_OFFSET;
+                    yield return new Move(piece, PieceType.Empty, piece.Location + CASTLE_MOVEMENT, rook);
+                }
+            }
+
+            // queenside castle
+            if (((board.CastleState & masks.QueensideStateMask) != CastleState.None) && ((bitboards.Threats & masks.QueensideThreatMask) == 0))
+            {
+                if ((bitboards.AllPieces & masks.QueensideClearance) == 0)
+                {
+                    int rook = piece.Location + QUEENSIDE_ROOK_OFFSET;
+                    yield return new Move(piece, PieceType.Empty, piece.Location - CASTLE_MOVEMENT, rook);
+                }
+            }
+
             foreach (var move in AllVectors)
             {
                 if (!(new SquareCoord(piece.Location) + move).IsValidSquare)
@@ -208,17 +273,7 @@ namespace Chessie.Core.Model
         {
             var kingLocation = board.GetMap(forBlack).King;
 
-            var bitboards = board.GetThreatMaps(forBlack);
-
-            //foreach (var piece in board.GetOpponentMap(forBlack).AllPieces())
-            //{
-            //    var potentialMoves = GetPotentialMovesForPiece(board, piece);
-            //    if (potentialMoves.Any(move => move.End == kingLocation))
-            //    {
-            //        checkLocation = kingLocation;
-            //        return true;
-            //    }
-            //}
+            var bitboards = board.GetBitboards(forBlack);
 
             ulong flag = bitboards.Threats & (1ul << kingLocation);
             if (flag != 0)
@@ -234,6 +289,12 @@ namespace Chessie.Core.Model
         public static bool IsMate(Board board, bool forBlack)
         {
             return !GetAllValidMoves(board, forBlack).Any();
+        }
+
+        public static bool IsPromotion(PieceType piece, int destination)
+        {
+            int rank = destination >> 3;
+            return ((piece & PieceType.Pawn) != 0) && (rank == SquareCoord.MIN_RANK || rank == SquareCoord.MAX_RANK);
         }
     }
 }

@@ -109,10 +109,15 @@ namespace Chessie.Core.Model
                 enPassantIndex = rankIndex * 8 + fileIndex;
             }
 
-            // halfmoves
 
-            // move number
-            int moveNumber = int.Parse(fields[5]);
+            int moveNumber = 0;
+            if (fields.Length >= 6)
+            {
+                // halfmoves
+
+                // move number
+                moveNumber = int.Parse(fields[5]);
+            }
             int plyNumber = (moveNumber * 2) + (blackToMove ? 1 : 0);
 
             return new Board(squares, castling, plyNumber, enPassantIndex, blackToMove);
