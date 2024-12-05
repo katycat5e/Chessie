@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Diagnostics.CodeAnalysis;
+using System.Drawing;
 
 namespace Chessie.Core.Model
 {
@@ -15,21 +16,11 @@ namespace Chessie.Core.Model
 
         public int King { get; private set; }
 
-        private ulong? _pieceBitboard;
+        public ulong PieceBitboard { get; private set; }
 
-        public ulong PieceBitboard
-        {
-            get
-            {
-                if (!_pieceBitboard.HasValue)
-                {
-                    _pieceBitboard = GenerateBitboard();
-                }
-                return _pieceBitboard.Value;
-            }
-        }
+        private readonly ulong[] _bitBoards = new ulong[N_TYPES];
 
-        private void BustBitBoard() => _pieceBitboard = null;
+        public ulong GetBitboard(PieceType type) => _bitBoards[TypeIndex(type)];
 
         public PieceMap(PieceType color)
         {
@@ -82,7 +73,7 @@ namespace Chessie.Core.Model
             _pieceCounts[index]++;
             _totalCount++;
 
-            BustBitBoard();
+            SetBitboard(index, location);
         }
 
         public void MovePiece(PieceType piece, Move move) =>
@@ -100,7 +91,8 @@ namespace Chessie.Core.Model
             int pieceIndex = PieceIndex(typeIndex, origin);
             _locations[typeIndex][pieceIndex] = destination;
 
-            BustBitBoard();
+            UnsetBitboard(typeIndex, origin);
+            SetBitboard(typeIndex, destination);
         }
 
         public void RemovePiece(PieceType piece, int location)
@@ -113,7 +105,7 @@ namespace Chessie.Core.Model
             _pieceCounts[typeIndex]--;
             _totalCount--;
 
-            BustBitBoard();
+            UnsetBitboard(typeIndex, location);
         }
 
         private int PieceIndex(int typeIndex, int location)
@@ -124,6 +116,12 @@ namespace Chessie.Core.Model
             }
             throw new ArgumentException("piece not found");
         }
+
+        private const int PAWN_INDEX = 0;
+        private const int KNIGHT_INDEX = 1;
+        private const int BISHOP_INDEX = 2;
+        private const int ROOK_INDEX = 3;
+        private const int QUEEN_INDEX = 4;
 
         private static int TypeIndex(PieceType pieceType)
         {
@@ -138,15 +136,18 @@ namespace Chessie.Core.Model
             };
         }
 
-        private ulong GenerateBitboard()
+        private void SetBitboard(int pieceTypeIndex, int location)
         {
-            ulong result = 0;
-            foreach (var piece in AllPieces())
-            {
-                ulong mask = 1ul << piece.Location;
-                result |= mask;
-            }
-            return result;
+            ulong mask = 1ul << location;
+            PieceBitboard |= mask;
+            _bitBoards[pieceTypeIndex] |= mask;
+        }
+
+        private void UnsetBitboard(int pieceTypeIndex, int location)
+        {
+            ulong mask = 1ul << location;
+            PieceBitboard &= ~mask;
+            _bitBoards[pieceTypeIndex] &= ~mask;
         }
 
         private static readonly PieceType[] _types =
@@ -177,10 +178,125 @@ namespace Chessie.Core.Model
             result[index] = new LocatedPiece(PieceType.King | Color, King);
             return result;
         }
+
+        public List<LocatedPiece> GetAttackers(int square, ulong defenderPieceBB)
+        {
+            var result = new List<LocatedPiece>();
+            var target = new SquareCoord(square);
+
+            // pawns
+            int pawnDir = Color == PieceType.Black ? -1 : 1;
+
+            var leftCapture = target - new MoveVector(pawnDir, -1);
+            if (leftCapture.IsValidSquare && ((_bitBoards[PAWN_INDEX] & leftCapture.BitboardMask) != 0))
+            {
+                result.Add(new(PieceType.Pawn | Color, leftCapture.Index));
+            }
+
+            var rightCapture = target - new MoveVector(pawnDir, 1);
+            if (rightCapture.IsValidSquare && ((_bitBoards[PAWN_INDEX] & rightCapture.BitboardMask) != 0))
+            {
+                result.Add(new(PieceType.Pawn | Color, rightCapture.Index));
+            }
+
+            // knights
+            foreach (var move in BoardCalculator.KnightMoves)
+            {
+                var attackSquare = target - move;
+                if (attackSquare.IsValidSquare && ((_bitBoards[KNIGHT_INDEX] & attackSquare.BitboardMask) != 0))
+                {
+                    result.Add(new(PieceType.Knight | Color, attackSquare.Index));
+                }
+            }
+
+            foreach (var vector in BoardCalculator.AllVectors)
+            {
+                var attackSquare = target - vector;
+                bool diagonal = (vector.DeltaRank & vector.DeltaFile) != 0;
+
+                for (int scale = 1; scale <= 7; scale++)
+                {
+                    ulong attackSquareMask = attackSquare.BitboardMask;
+
+                    // out of bounds or occupied by own piece
+                    if (!attackSquare.IsValidSquare || ((defenderPieceBB & attackSquareMask) != 0)) break;
+
+                    // empty square
+                    if ((PieceBitboard & attackSquareMask) == 0) continue;
+
+                    // attacker
+                    if (diagonal)
+                    {
+                        // bishop
+                        if ((_bitBoards[BISHOP_INDEX] & attackSquare.BitboardMask) != 0)
+                        {
+                            result.Add(new(PieceType.Bishop | Color, attackSquare.Index));
+                            break;
+                        }
+                        // queen
+                        else if ((_bitBoards[QUEEN_INDEX] & attackSquare.BitboardMask) != 0)
+                        {
+                            result.Add(new(PieceType.Queen | Color, attackSquare.Index));
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        // rook
+                        if ((_bitBoards[ROOK_INDEX] & attackSquare.BitboardMask) != 0)
+                        {
+                            result.Add(new(PieceType.Rook | Color, attackSquare.Index));
+                            break;
+                        }
+                    }
+
+                    attackSquare -= vector;
+                }
+            }
+
+            //// bishops
+            //CheckForSlideAttackers(result, defenderPieceBB, target, BoardCalculator.BishopVectors, PieceType.Bishop | Color, BISHOP_INDEX);
+
+            //// rooks
+            //CheckForSlideAttackers(result, defenderPieceBB, target, BoardCalculator.RookVectors, PieceType.Rook | Color, ROOK_INDEX);
+
+            //// queens
+            //CheckForSlideAttackers(result, defenderPieceBB, target, BoardCalculator.AllVectors, PieceType.Queen | Color, QUEEN_INDEX);
+
+            return result;
+        }
+
+        private void CheckForSlideAttackers(List<LocatedPiece> attackers, ulong defenders, SquareCoord target, IEnumerable<MoveVector> vectorsToCheck, PieceType piece, int typeIndex)
+        {
+            foreach (var vector in vectorsToCheck)
+            {
+                var attackSquare = target - vector;
+
+                for (int scale = 1; scale <= 7; scale++)
+                {
+                    ulong attackSquareMask = attackSquare.BitboardMask;
+
+                    // out of bounds or occupied by own piece
+                    if (!attackSquare.IsValidSquare || ((defenders & attackSquareMask) != 0)) break;
+
+                    // empty square
+                    if ((PieceBitboard & attackSquareMask) == 0) continue;
+
+                    // attacker
+                    if ((_bitBoards[typeIndex] & attackSquare.BitboardMask) != 0)
+                    {
+                        attackers.Add(new(piece, attackSquare.Index));
+                        break;
+                    }
+
+                    attackSquare -= vector;
+                }
+            }
+        }
     }
 
 
-    public readonly struct LocatedPiece
+    public readonly struct LocatedPiece : IComparable<LocatedPiece>
     {
         public readonly PieceType Piece;
         public readonly int Location;
@@ -212,6 +328,11 @@ namespace Chessie.Core.Model
         public override int GetHashCode()
         {
             return HashCode.Combine(Piece, Location);
+        }
+
+        public int CompareTo(LocatedPiece other)
+        {
+            return Model.Piece.UnsignedValue(Piece).CompareTo(Model.Piece.UnsignedValue(other.Piece));
         }
     }
 }

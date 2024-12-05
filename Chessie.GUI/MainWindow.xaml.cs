@@ -1,4 +1,5 @@
 ﻿using Chessie.Core.Model;
+using Chessie.GUI.ViewModels;
 using Chessie.ViewModels;
 using System.Diagnostics;
 using System.Windows;
@@ -13,6 +14,7 @@ namespace Chessie
     {
         public BoardViewModel BoardView { get; }
         public GameManager Game { get; }
+        public ChessieSettingsViewModel BotSettings { get; } = new();
 
         public MainWindow()
         {
@@ -101,6 +103,11 @@ namespace Chessie
             };
 
             dialog.ShowDialog();
+        }
+
+        private void RefreshBot_Click(object sender, RoutedEventArgs e)
+        {
+            Game.SetupNextTurn();
         }
     }
 }

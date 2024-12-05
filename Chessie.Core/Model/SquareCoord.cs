@@ -14,6 +14,7 @@ namespace Chessie.Core.Model
         public readonly int File;
 
         public readonly int Index => (Rank << 3) | File;
+        public readonly ulong BitboardMask => 1ul << ((Rank << 3) | File);
 
         public readonly bool IsInFirstRank => Rank == MIN_RANK;
         public readonly bool IsInLastRank => Rank == MAX_RANK;
@@ -55,6 +56,9 @@ namespace Chessie.Core.Model
 
         public static SquareCoord operator +(SquareCoord origin, MoveVector move) =>
             new(origin.Rank + move.DeltaRank, origin.File + move.DeltaFile);
+
+        public static SquareCoord operator -(SquareCoord destination, MoveVector move) =>
+            new(destination.Rank - move.DeltaRank, destination.File - move.DeltaFile);
 
         public override string ToString()
         {

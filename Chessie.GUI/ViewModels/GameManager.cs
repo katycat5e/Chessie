@@ -248,7 +248,7 @@ namespace Chessie.ViewModels
             PreviousMoves.Push(record);
         }
 
-        private void SetupNextTurn()
+        public void SetupNextTurn()
         {
             // setup AI moves
             bool isAITurn = BlackToMove ? BlackIsCPU : WhiteIsCPU;
@@ -258,7 +258,7 @@ namespace Chessie.ViewModels
                 _isAIThinking = true;
                 AllowUIToUpdate();
                 AIMoves = ChessieBot.RankPotentialMoves(Board);
-                AIThinkDuration = $"({ChessieBot.LastThinkDuration:f2} s)";
+                AIThinkDuration = $"({ChessieBot.LastThinkDuration:f2} s), ({ChessieBot.StatesEvaluated} nodes)";
                 _isAIThinking = false;
             }
             else
@@ -274,7 +274,7 @@ namespace Chessie.ViewModels
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TurnIndicator)));
         }
 
-        private void AllowUIToUpdate()
+        private static void AllowUIToUpdate()
         {
             var frame = new DispatcherFrame();
             Dispatcher.CurrentDispatcher.BeginInvoke(DispatcherPriority.Render, new DispatcherOperationCallback(delegate (object parameter)

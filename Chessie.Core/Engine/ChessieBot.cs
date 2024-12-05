@@ -5,7 +5,9 @@ namespace Chessie.Core.Engine
 {
     public static class ChessieBot
     {
-        const int SEARCH_DEPTH = 3;
+        public static int SearchDepth { get; set; } = 3;
+        public static bool UseMoveOrdering { get; set; } = true;
+        public static bool UseSEE { get; set; } = true;
 
         const int MAX = 999999;
         const int MIN = -MAX;
@@ -21,13 +23,26 @@ namespace Chessie.Core.Engine
             var watch = Stopwatch.StartNew();
 
             var nextMoves = BoardCalculator.GetAllValidMoves(board, playingAsBlack).ToList();
-            MoveOrdering.Sort(board, nextMoves);
+            if (UseMoveOrdering) MoveOrdering.Sort(board, nextMoves);
 
             var sortedMoves = new List<RankedMove>();
             foreach (var move in nextMoves)
             {
+                // if capture leads to a bad exchange, skip this move
+                if (move.CapturedPiece != PieceType.Empty)
+                {
+                    int exchangeEval = GetStaticExchangeEvaluation(board, move);
+
+                    int goodExchangeSign = board.BlackToMove ? -1 : 1;
+                    int currentExchangeSign = Math.Sign(exchangeEval);
+                    if ((currentExchangeSign != 0) && (currentExchangeSign != goodExchangeSign))
+                    {
+                        continue;
+                    }
+                }
+
                 board.ApplyMove(move);
-                int bestEval = Search(board, SEARCH_DEPTH, playingAsBlack, MAX, MIN, out string seq);// + Random.Shared.Next(-5, 5);
+                int bestEval = Search(board, SearchDepth, playingAsBlack, MAX, MIN, out string seq);// + Random.Shared.Next(-5, 5);
                 board.UndoLastMove();
                 sortedMoves.Add(new RankedMove(bestEval, move, seq));
             }
@@ -66,7 +81,8 @@ namespace Chessie.Core.Engine
 
             //int best = MIN;
             moveSeq = string.Empty;
-            var nextMoves = BoardCalculator.GetAllValidMoves(board, board.BlackToMove);
+            var nextMoves = BoardCalculator.GetAllValidMoves(board, board.BlackToMove).ToList();
+            if (UseMoveOrdering) MoveOrdering.Sort(board, nextMoves);
 
             int bestEval;
             Move bestMove = new();
@@ -78,6 +94,19 @@ namespace Chessie.Core.Engine
 
                 foreach (var move in nextMoves)
                 {
+                    // if capture leads to a bad exchange, skip this move
+                    if (move.CapturedPiece != PieceType.Empty)
+                    {
+                        int exchangeEval = GetStaticExchangeEvaluation(board, move);
+
+                        int goodExchangeSign = board.BlackToMove ? -1 : 1;
+                        int currentExchangeSign = Math.Sign(exchangeEval);
+                        if ((currentExchangeSign != 0) && (currentExchangeSign != goodExchangeSign))
+                        {
+                            continue;
+                        }
+                    }
+
                     board.ApplyMove(move);
                     int bestMoveResult = Search(board, depthLimit - 1, !maximizing, minimumMaximizer, maximumMinimizer, out string nextSeq);
                     board.UndoLastMove();
@@ -100,6 +129,19 @@ namespace Chessie.Core.Engine
 
                 foreach (var move in nextMoves)
                 {
+                    // if capture leads to a bad exchange, skip this move
+                    if (move.CapturedPiece != PieceType.Empty)
+                    {
+                        int exchangeEval = GetStaticExchangeEvaluation(board, move);
+
+                        int goodExchangeSign = board.BlackToMove ? -1 : 1;
+                        int currentExchangeSign = Math.Sign(exchangeEval);
+                        if ((currentExchangeSign != 0) && (currentExchangeSign != goodExchangeSign))
+                        {
+                            continue;
+                        }
+                    }
+
                     board.ApplyMove(move);
                     int bestMoveResult = Search(board, depthLimit - 1, !maximizing, minimumMaximizer, maximumMinimizer, out string nextSeq);
                     board.UndoLastMove();
@@ -170,6 +212,51 @@ namespace Chessie.Core.Engine
 
             return eval;
         }
+
+        private static int GetStaticExchangeEvaluation(Board board, Move move)
+        {
+            var whiteAttackers = board.WhitePieces.GetAttackers(move.End, board.BlackPieces.PieceBitboard);
+            whiteAttackers.Sort();
+
+            var blackAttackers = board.BlackPieces.GetAttackers(move.End, board.WhitePieces.PieceBitboard);
+            blackAttackers.Sort();
+
+            bool blackToMove = board.BlackToMove;
+            int whiteIndex = 0;
+            int blackIndex = 0;
+
+            int netMaterial = Piece.SignedValue(move.CapturedPiece);
+            PieceType currentOccupant = move.Piece;
+
+            if ((whiteAttackers.Count > 0) && (whiteAttackers[whiteIndex].Location == move.Start)) whiteIndex++;
+            if ((blackAttackers.Count > 0) && (blackAttackers[blackIndex].Location == move.Start)) blackIndex++;
+
+            while ((whiteIndex < whiteAttackers.Count) && (blackIndex < blackAttackers.Count))
+            {
+                netMaterial += Piece.SignedValue(currentOccupant);
+
+                if (blackToMove)
+                {
+                    if (blackAttackers[blackIndex].Location == move.Start) blackIndex++;
+                    if (blackIndex >= blackAttackers.Count) break;
+
+                    currentOccupant = blackAttackers[blackIndex].Piece;
+                    blackIndex++;
+                }
+                else
+                {
+                    if (whiteAttackers[whiteIndex].Location == move.Start) whiteIndex++;
+                    if (whiteIndex >= whiteAttackers.Count) break;
+
+                    currentOccupant = whiteAttackers[whiteIndex].Piece;
+                    whiteIndex++;
+                }
+
+                blackToMove = !blackToMove;
+            }
+
+            return netMaterial;
+        }
     }
 
 
@@ -191,7 +278,9 @@ namespace Chessie.Core.Engine
 
         public int CompareTo(RankedMove other)
         {
-            return Evaluation - other.Evaluation;
+            int difference = Evaluation - other.Evaluation;
+            if (difference != 0) return difference;
+            return Move.GetHashCode() - other.Move.GetHashCode();
         }
 
         public override string ToString()
