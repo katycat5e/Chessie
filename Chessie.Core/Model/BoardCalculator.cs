@@ -181,9 +181,9 @@ namespace Chessie.Core.Model
             0b0001_1100ul << 56, 0b0111_0000ul << 56
         );
 
-        private const int CASTLE_MOVEMENT = 2;
-        private const int KINGSIDE_ROOK_OFFSET = 3;
-        private const int QUEENSIDE_ROOK_OFFSET = -4;
+        public const int CASTLE_MOVEMENT = 2;
+        public const int KINGSIDE_ROOK_OFFSET = 3;
+        public const int QUEENSIDE_ROOK_OFFSET = -4;
 
         private static IEnumerable<Move> GetValidKingMoves(Board board, LocatedPiece piece)
         {

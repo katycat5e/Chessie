@@ -23,6 +23,17 @@ namespace Chessie.GUI.ViewModels
             }
         }
 
+        public bool DeterministicSearch
+        {
+            get => ChessieBot.DeterministicSearch;
+            set
+            {
+                ChessieBot.DeterministicSearch = value;
+                PieceMap.SortPieces = value;
+                Notify(nameof(DeterministicSearch));
+            }
+        }
+
         public bool UseMoveOrdering
         {
             get => ChessieBot.UseMoveOrdering;

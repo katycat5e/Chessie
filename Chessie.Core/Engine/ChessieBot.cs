@@ -6,6 +6,13 @@ namespace Chessie.Core.Engine
     public static class ChessieBot
     {
         public static int SearchDepth { get; set; } = 3;
+        public static bool DeterministicSearch { get; set; } =
+        #if DEBUG
+            true;
+        #else
+            false;
+        #endif
+
         public static bool UseMoveOrdering { get; set; } = true;
         public static bool UseSEE { get; set; } = true;
 

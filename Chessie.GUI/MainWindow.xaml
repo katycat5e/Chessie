@@ -24,6 +24,7 @@
                     <ComboBox ItemsSource="{Binding DepthOptions}" SelectedItem="{Binding Depth}"/>
                 </StackPanel>
                 <Separator/>
+                <MenuItem Header="Deterministic Search" IsCheckable="True" IsChecked="{Binding DeterministicSearch}"/>
                 <MenuItem Header="Use Move Ordering" IsCheckable="True" IsChecked="{Binding UseMoveOrdering}"/>
                 <MenuItem Header="Use Static Exchange Eval" IsCheckable="True" IsChecked="{Binding UseSEE}"/>
             </MenuItem>

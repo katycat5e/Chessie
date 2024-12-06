@@ -73,6 +73,14 @@ namespace Chessie.Core.Model
             BlackPieces.InitFromBoard(Squares);
         }
 
+        public Board Clone()
+        {
+            var squares = new PieceType[64];
+            Array.Copy(Squares, squares, squares.Length);
+
+            return new Board(squares, CastleState, PlyNumber, EnPassantSquare, BlackToMove);
+        }
+
         public void Reset()
         {
             Array.Copy(START_STATE, Squares, 64);
@@ -220,7 +228,7 @@ namespace Chessie.Core.Model
 
             if (!_allPiecesBitBoard.HasValue)
             {
-                _allPiecesBitBoard = RegenPieceMap();
+                _allPiecesBitBoard = WhitePieces.PieceBitboard | BlackPieces.PieceBitboard;
             }
 
             ulong threatMap = 0;
@@ -321,20 +329,6 @@ namespace Chessie.Core.Model
             else
             {
                 _whiteBitboards = result;
-            }
-            return result;
-        }
-
-        private ulong RegenPieceMap()
-        {
-            ulong result = 0;
-            foreach (var piece in WhitePieces.AllPieces())
-            {
-                result |= (1ul << piece.Location);
-            }
-            foreach (var piece in BlackPieces.AllPieces())
-            {
-                result |= (1ul << piece.Location);
             }
             return result;
         }
@@ -514,6 +508,43 @@ namespace Chessie.Core.Model
 
                 return new string(chars);
             }
+        }
+
+        public Move CreateUCIMove(string longAlgebraic) => CreateUCIMove(longAlgebraic, out _);
+
+        public Move CreateUCIMove(string longAlgebraic, out PieceType? promotion)
+        {
+            int startFile = longAlgebraic[0] - 'a';
+            int startRank = longAlgebraic[1] - '1';
+            int endFile = longAlgebraic[2] - 'a';
+            int endRank = longAlgebraic[3] - '1';
+
+            PieceType toMove = this[startRank, startFile];
+            PieceType target = this[endRank, endFile];
+
+            // promotion
+            promotion = null;
+            if (longAlgebraic.Length == 5)
+            {
+                promotion = Piece.FromId(longAlgebraic[4], toMove & PieceType.ColorMask);
+            }
+
+            int deltaFile = Math.Abs(endFile - startFile);
+
+            // castling
+            SquareCoord? rook = null;
+            if (((toMove & PieceType.King) != 0) && (deltaFile == 2))
+            {
+                int rookOffset = (endFile > startFile) ? BoardCalculator.KINGSIDE_ROOK_OFFSET : BoardCalculator.QUEENSIDE_ROOK_OFFSET;
+                rook = new(startRank, startFile + rookOffset);
+            }
+
+            // en passant
+            bool enPassant = ((toMove & PieceType.Pawn) != 0) && (deltaFile == 1) && (target == PieceType.Empty);
+
+            return new Move(toMove, target,
+                new SquareCoord(startRank, startFile), new SquareCoord(endRank, endFile),
+                rook, enPassant);
         }
     }
 

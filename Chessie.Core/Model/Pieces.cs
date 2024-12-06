@@ -87,6 +87,34 @@ namespace Chessie.Core.Model
             };
         }
 
+        public static PieceType FromId(char id, PieceType? overrideColor = null)
+        {
+            PieceType result = id switch
+            {
+                'P' => P,
+                'N' => N,
+                'B' => B,
+                'R' => R,
+                'Q' => Q,
+                'K' => K,
+
+                'p' => p,
+                'n' => n,
+                'b' => b,
+                'r' => r,
+                'q' => q,
+                'k' => k,
+
+                _ => throw new NotImplementedException()
+            };
+
+            if (overrideColor.HasValue)
+            {
+                return (result & ~PieceType.ColorMask) | overrideColor.Value;
+            }
+            return result;
+        }
+
         public static char TypeIcon(this PieceType piece)
         {
             if ((piece & PieceType.White) != 0)

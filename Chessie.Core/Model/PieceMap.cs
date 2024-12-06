@@ -6,6 +6,13 @@ namespace Chessie.Core.Model
 {
     public class PieceMap
     {
+        public static bool SortPieces { get; set; }
+        #if DEBUG
+            = true;
+        #else
+            = false;
+        #endif
+
         const int N_TYPES = 5;
         const int MAX_PIECES = 8;
 
@@ -176,6 +183,7 @@ namespace Chessie.Core.Model
             }
 
             result[index] = new LocatedPiece(PieceType.King | Color, King);
+            if (SortPieces) Array.Sort(result, (a, b) => a.Location.CompareTo(b.Location));
             return result;
         }
 
@@ -254,44 +262,29 @@ namespace Chessie.Core.Model
                 }
             }
 
-            //// bishops
-            //CheckForSlideAttackers(result, defenderPieceBB, target, BoardCalculator.BishopVectors, PieceType.Bishop | Color, BISHOP_INDEX);
-
-            //// rooks
-            //CheckForSlideAttackers(result, defenderPieceBB, target, BoardCalculator.RookVectors, PieceType.Rook | Color, ROOK_INDEX);
-
-            //// queens
-            //CheckForSlideAttackers(result, defenderPieceBB, target, BoardCalculator.AllVectors, PieceType.Queen | Color, QUEEN_INDEX);
-
             return result;
         }
 
-        private void CheckForSlideAttackers(List<LocatedPiece> attackers, ulong defenders, SquareCoord target, IEnumerable<MoveVector> vectorsToCheck, PieceType piece, int typeIndex)
+        public override bool Equals(object? obj)
         {
-            foreach (var vector in vectorsToCheck)
+            if (obj is not PieceMap other) return false;
+
+            if ((Color != other.Color) || (PieceBitboard != other.PieceBitboard)) return false;
+
+            for (int typeIndex = 0; typeIndex < _pieceCounts.Length; typeIndex++)
             {
-                var attackSquare = target - vector;
+                var ownPieces = new ArraySegment<int>(_locations[typeIndex], 0, _pieceCounts[typeIndex]).ToHashSet();
+                var otherPieces = new ArraySegment<int>(other._locations[typeIndex], 0, other._pieceCounts[typeIndex]).ToHashSet();
 
-                for (int scale = 1; scale <= 7; scale++)
-                {
-                    ulong attackSquareMask = attackSquare.BitboardMask;
-
-                    // out of bounds or occupied by own piece
-                    if (!attackSquare.IsValidSquare || ((defenders & attackSquareMask) != 0)) break;
-
-                    // empty square
-                    if ((PieceBitboard & attackSquareMask) == 0) continue;
-
-                    // attacker
-                    if ((_bitBoards[typeIndex] & attackSquare.BitboardMask) != 0)
-                    {
-                        attackers.Add(new(piece, attackSquare.Index));
-                        break;
-                    }
-
-                    attackSquare -= vector;
-                }
+                if (!ownPieces.SetEquals(otherPieces)) return false;
             }
+
+            return true;
+        }
+
+        public override int GetHashCode()
+        {
+            throw new NotImplementedException();
         }
     }
 
