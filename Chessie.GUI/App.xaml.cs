@@ -2,7 +2,7 @@
 using System.Data;
 using System.Windows;
 
-namespace Chessie
+namespace Chessie.GUI
 {
     /// <summary>
     /// Interaction logic for App.xaml

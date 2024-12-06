@@ -4,7 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Windows;
 using System.Windows.Threading;
 
-namespace Chessie.ViewModels
+namespace Chessie.GUI.ViewModels
 {
     using MoveDictionary = Dictionary<int, Move>;
 

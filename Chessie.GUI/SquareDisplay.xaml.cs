@@ -13,7 +13,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 
-namespace Chessie
+namespace Chessie.GUI
 {
     /// <summary>
     /// Interaction logic for SquareDisplay.xaml

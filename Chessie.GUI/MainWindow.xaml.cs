@@ -1,11 +1,8 @@
-﻿using Chessie.Core.Model;
-using Chessie.GUI.ViewModels;
-using Chessie.ViewModels;
-using System.Diagnostics;
+﻿using Chessie.GUI.ViewModels;
 using System.Windows;
 using System.Windows.Input;
 
-namespace Chessie
+namespace Chessie.GUI
 {
     /// <summary>
     /// Interaction logic for MainWindow.xaml

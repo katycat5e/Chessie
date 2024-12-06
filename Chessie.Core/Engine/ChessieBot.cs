@@ -36,7 +36,7 @@ namespace Chessie.Core.Engine
             foreach (var move in nextMoves)
             {
                 // if capture leads to a bad exchange, skip this move
-                if (move.CapturedPiece != PieceType.Empty)
+                if (UseSEE && (move.CapturedPiece != PieceType.Empty))
                 {
                     int exchangeEval = GetStaticExchangeEvaluation(board, move);
 
@@ -102,7 +102,7 @@ namespace Chessie.Core.Engine
                 foreach (var move in nextMoves)
                 {
                     // if capture leads to a bad exchange, skip this move
-                    if (move.CapturedPiece != PieceType.Empty)
+                    if (UseSEE & (move.CapturedPiece != PieceType.Empty))
                     {
                         int exchangeEval = GetStaticExchangeEvaluation(board, move);
 
