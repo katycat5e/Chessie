@@ -1,0 +1,36 @@
+﻿<Window x:Class="Chessie.GUI.BitboardDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Chessie.GUI"
+        xmlns:model="clr-namespace:Chessie.GUI.ViewModels"
+        mc:Ignorable="d"
+        Title="BitboardDialog" Height="450" Width="600">
+    <Grid DataContext="{Binding RelativeSource={RelativeSource AncestorType=local:BitboardDialog}, Path=ViewModel}"
+        d:DataContext="{d:DesignInstance Type=model:BitboardViewModel, IsDesignTimeCreatable=True}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <Label Grid.ColumnSpan="4" Content="White Bitboards:"/>
+
+        <local:BitboardDisplay Grid.Row="1" Grid.Column="0" Bits="{Binding WhitePieces}" BoardTitle="White Pieces"/>
+        <local:BitboardDisplay Grid.Row="1" Grid.Column="1" Bits="{Binding WhiteThreats}" BoardTitle="White Threats"/>
+        <local:BitboardDisplay Grid.Row="1" Grid.Column="2" Bits="{Binding WhiteKingThreats}" BoardTitle="White King Threats"/>
+
+        <Label Grid.Row="2" Grid.ColumnSpan="4" Content="Black Bitboards:"/>
+
+        <local:BitboardDisplay Grid.Row="3" Grid.Column="0" Bits="{Binding BlackPieces}" BoardTitle="Black Pieces"/>
+        <local:BitboardDisplay Grid.Row="3" Grid.Column="1" Bits="{Binding BlackThreats}" BoardTitle="Black Threats"/>
+        <local:BitboardDisplay Grid.Row="3" Grid.Column="2" Bits="{Binding BlackKingThreats}" BoardTitle="Black King Threats"/>
+    </Grid>
+</Window>
