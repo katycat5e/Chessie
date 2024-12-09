@@ -15,7 +15,7 @@ namespace Chessie.Core.Engine
         public static bool DeterministicSearch { get; set; } = DEBUG_MODE;
         
         public static bool UseMoveOrdering { get; set; } = true;
-        public static bool UseSEE { get; set; } = !DEBUG_MODE;
+        public static bool UseSEE { get; set; } = true;
         public static bool UseABPruning { get; set; } = true;
 
         const int MAX = 999999;
