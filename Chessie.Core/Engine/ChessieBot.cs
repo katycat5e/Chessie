@@ -222,49 +222,54 @@ namespace Chessie.Core.Engine
             return eval;
         }
 
-        private static int GetStaticExchangeEvaluation(Board board, Move move)
+        public static int GetStaticExchangeEvaluation(Board board, Move move)
         {
-            var whiteAttackers = board.WhitePieces.GetAttackers(move.End, board.BlackPieces.PieceBitboard);
-            whiteAttackers.Sort();
+            var attackingMap = board.GetMap(board.BlackToMove);
+            var defendingMap = board.GetMap(!board.BlackToMove);
 
-            var blackAttackers = board.BlackPieces.GetAttackers(move.End, board.WhitePieces.PieceBitboard);
-            blackAttackers.Sort();
+            var attackers = attackingMap.GetAttackers(move.End, defendingMap.PieceBitboard, move.Start);
+            var defenders = defendingMap.GetAttackers(move.End, attackingMap.PieceBitboard, move.Start);
 
-            bool blackToMove = board.BlackToMove;
-            int whiteIndex = 0;
-            int blackIndex = 0;
+            int capturedMaterial = Piece.SignedValue(move.CapturedPiece);
 
-            int netMaterial = -Piece.SignedValue(move.CapturedPiece);
-            PieceType currentOccupant = move.Piece;
-
-            if ((whiteAttackers.Count > 0) && (whiteAttackers[whiteIndex].Location == move.Start)) whiteIndex++;
-            if ((blackAttackers.Count > 0) && (blackAttackers[blackIndex].Location == move.Start)) blackIndex++;
-
-            while ((!blackToMove && whiteIndex < whiteAttackers.Count) || (blackToMove && blackIndex < blackAttackers.Count))
+            if (defenders.Count == 0)
             {
-                netMaterial -= Piece.SignedValue(currentOccupant);
+                // nobody to retake
+                return -capturedMaterial;
+            }
+            else if (attackers.Count == 0)
+            {
+                // defender can recapture
+                return -capturedMaterial - Piece.SignedValue(move.Piece);
+            }
 
-                if (blackToMove)
+            attackers.Sort();
+            defenders.Sort();
+
+            int attackerIndex = 0;
+            int defenderIndex = 0;
+            bool defenderMove = true;
+            PieceType hotseatPiece = move.Piece;
+
+            while ((defenderMove && (defenderIndex < defenders.Count)) || (!defenderMove && (attackerIndex < attackers.Count)))
+            {
+                capturedMaterial += Piece.SignedValue(hotseatPiece);
+
+                if (defenderMove)
                 {
-                    if (blackAttackers[blackIndex].Location == move.Start) blackIndex++;
-                    if (blackIndex >= blackAttackers.Count) break;
-
-                    currentOccupant = blackAttackers[blackIndex].Piece;
-                    blackIndex++;
+                    hotseatPiece = defenders[defenderIndex].Piece;
+                    defenderIndex++;
                 }
                 else
                 {
-                    if (whiteAttackers[whiteIndex].Location == move.Start) whiteIndex++;
-                    if (whiteIndex >= whiteAttackers.Count) break;
-
-                    currentOccupant = whiteAttackers[whiteIndex].Piece;
-                    whiteIndex++;
+                    hotseatPiece = attackers[attackerIndex].Piece;
+                    attackerIndex++;
                 }
 
-                blackToMove = !blackToMove;
+                defenderMove = !defenderMove;
             }
 
-            return netMaterial;
+            return -capturedMaterial;
         }
     }
 
