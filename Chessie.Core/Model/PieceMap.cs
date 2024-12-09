@@ -194,7 +194,7 @@ namespace Chessie.Core.Model
             return result;
         }
 
-        public List<LocatedPiece> GetAttackers(int square, ulong defenderPieceBB)
+        public List<LocatedPiece> GetAttackers(int square, ulong defenderPieceBB, int ignorePieceIndex = -1)
         {
             var result = new List<LocatedPiece>();
             var target = new SquareCoord(square);
@@ -205,13 +205,19 @@ namespace Chessie.Core.Model
             var leftCapture = target - new MoveVector(pawnDir, -1);
             if (leftCapture.IsValidSquare && ((_bitBoards[PAWN_INDEX] & leftCapture.BitboardMask) != 0))
             {
-                result.Add(new(PieceType.Pawn | Color, leftCapture.Index));
+                if (leftCapture.Index != ignorePieceIndex)
+                {
+                    result.Add(new(PieceType.Pawn | Color, leftCapture.Index));
+                }
             }
 
             var rightCapture = target - new MoveVector(pawnDir, 1);
             if (rightCapture.IsValidSquare && ((_bitBoards[PAWN_INDEX] & rightCapture.BitboardMask) != 0))
             {
-                result.Add(new(PieceType.Pawn | Color, rightCapture.Index));
+                if (rightCapture.Index != ignorePieceIndex)
+                {
+                    result.Add(new(PieceType.Pawn | Color, rightCapture.Index));
+                }
             }
 
             // knights
@@ -220,7 +226,10 @@ namespace Chessie.Core.Model
                 var attackSquare = target - move;
                 if (attackSquare.IsValidSquare && ((_bitBoards[KNIGHT_INDEX] & attackSquare.BitboardMask) != 0))
                 {
-                    result.Add(new(PieceType.Knight | Color, attackSquare.Index));
+                    if (attackSquare.Index != ignorePieceIndex)
+                    {
+                        result.Add(new(PieceType.Knight | Color, attackSquare.Index));
+                    }
                 }
             }
 
@@ -243,13 +252,13 @@ namespace Chessie.Core.Model
                     if (diagonal)
                     {
                         // bishop
-                        if ((_bitBoards[BISHOP_INDEX] & attackSquare.BitboardMask) != 0)
+                        if (((_bitBoards[BISHOP_INDEX] & attackSquare.BitboardMask) != 0) && (attackSquare.Index != ignorePieceIndex))
                         {
                             result.Add(new(PieceType.Bishop | Color, attackSquare.Index));
                             break;
                         }
                         // queen
-                        else if ((_bitBoards[QUEEN_INDEX] & attackSquare.BitboardMask) != 0)
+                        else if (((_bitBoards[QUEEN_INDEX] & attackSquare.BitboardMask) != 0) && (attackSquare.Index != ignorePieceIndex))
                         {
                             result.Add(new(PieceType.Queen | Color, attackSquare.Index));
                             break;
@@ -258,7 +267,7 @@ namespace Chessie.Core.Model
                     else
                     {
                         // rook
-                        if ((_bitBoards[ROOK_INDEX] & attackSquare.BitboardMask) != 0)
+                        if (((_bitBoards[ROOK_INDEX] & attackSquare.BitboardMask) != 0) && (attackSquare.Index != ignorePieceIndex))
                         {
                             result.Add(new(PieceType.Rook | Color, attackSquare.Index));
                             break;

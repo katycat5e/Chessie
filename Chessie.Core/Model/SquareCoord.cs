@@ -13,8 +13,9 @@ namespace Chessie.Core.Model
         public readonly int Rank;
         public readonly int File;
 
-        public readonly int Index => (Rank << 3) | File;
-        public readonly ulong BitboardMask => 1ul << ((Rank << 3) | File);
+        private readonly int _index;
+        public readonly int Index => _index;
+        public readonly ulong BitboardMask => 1ul << _index;
 
         public readonly bool IsInFirstRank => Rank == MIN_RANK;
         public readonly bool IsInLastRank => Rank == MAX_RANK;
@@ -33,12 +34,14 @@ namespace Chessie.Core.Model
         {
             Rank = rank;
             File = file;
+            _index = (Rank << 3) | File;
         }
 
         public SquareCoord(int squareIndex)
         {
             Rank = squareIndex >> 3;
             File = squareIndex & 0b111;
+            _index = squareIndex;
         }
 
         public static bool operator ==(SquareCoord left, SquareCoord right) => (left.Rank == right.Rank) && (left.File == right.File);
