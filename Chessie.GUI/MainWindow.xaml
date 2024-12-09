@@ -16,7 +16,6 @@
             </MenuItem>
             <MenuItem Header="Debug">
                 <MenuItem Header="Refresh Bot Eval" Click="RefreshBot_Click"/>
-                <MenuItem Header="Auto AI Move" IsCheckable="True" IsChecked="{Binding AutoMove}"/>
                 <Separator/>
                 <MenuItem Header="Perft..." Click="RunPerft_Click"/>
                 <MenuItem Header="Bitboards..." Click="ShowBitboards_Click"/>
@@ -59,13 +58,13 @@
             <DockPanel Grid.Row="0" Grid.Column="2" LastChildFill="True">
                 <CheckBox DockPanel.Dock="Top" x:Name="WhiteCPUCheckbox" Content="Use AI for White" IsChecked="{Binding Game.WhiteIsCPU}"/>
                 <CheckBox DockPanel.Dock="Top" x:Name="BlackCPUCheckbox" Content="Use AI for Black" IsChecked="{Binding Game.BlackIsCPU}"/>
-                <CheckBox DockPanel.Dock="Top" x:Name="ShowAIThoughtsCheckbox" Content="Show AI Move Consideration" IsChecked="{Binding Game.ShowAIThoughts}"/>
+                <CheckBox DockPanel.Dock="Top" x:Name="AutoMoveCheckbox" Content="Auto AI Move" IsChecked="{Binding AutoMove}"/>
 
                 <Separator  DockPanel.Dock="Top"/>
                 <Label DockPanel.Dock="Top" Content="{Binding Game.TurnIndicator}" FontFamily="DejaVu Sans"/>
                 <Separator DockPanel.Dock="Top"/>
 
-                <ScrollViewer>
+                <ScrollViewer x:Name="PreviousMovesScroll">
                     <ItemsControl ItemsSource="{Binding Game.PreviousMoves}" FontFamily="DejaVu Sans">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>

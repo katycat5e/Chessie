@@ -23,7 +23,7 @@ namespace Chessie.GUI
 
         // Using a DependencyProperty as the backing store for AutoMove.  This enables animation, styling, binding, etc...
         public static readonly DependencyProperty AutoMoveProperty =
-            DependencyProperty.Register("AutoMove", typeof(bool), typeof(MainWindow), new PropertyMetadata(!App.IsDebugBuild));
+            DependencyProperty.Register("AutoMove", typeof(bool), typeof(MainWindow), new PropertyMetadata(true));
 
 
 
@@ -86,6 +86,7 @@ namespace Chessie.GUI
             }
 
             Cursor = prevCursor;
+            PreviousMovesScroll.ScrollToBottom();
         }
 
         private void AutoMove_Tick(object? sender, EventArgs e)
@@ -94,7 +95,14 @@ namespace Chessie.GUI
 
             if (!Game.IsAITurn) return;
 
+            var prevCursor = Cursor;
+            Cursor = Cursors.Wait;
+
             Game.MakeAIMove();
+
+            Cursor = prevCursor;
+
+            PreviousMovesScroll.ScrollToBottom();
 
             if (AutoMove && Game.IsAITurn)
             {
