@@ -54,6 +54,16 @@ namespace Chessie.GUI.ViewModels
             }
         }
 
+        public bool UseABPruning
+        {
+            get => ChessieBot.UseABPruning;
+            set
+            {
+                ChessieBot.UseABPruning = value;
+                Notify(nameof(UseABPruning));
+            }
+        }
+
         private void Notify(string property)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));

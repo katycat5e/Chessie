@@ -1,6 +1,7 @@
 ﻿using Chessie.GUI.ViewModels;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Threading;
 
 namespace Chessie.GUI
 {
@@ -13,10 +14,31 @@ namespace Chessie.GUI
         public GameManager Game { get; }
         public ChessieSettingsViewModel BotSettings { get; } = new();
 
+
+        public bool AutoMove
+        {
+            get { return (bool)GetValue(AutoMoveProperty); }
+            set { SetValue(AutoMoveProperty, value); }
+        }
+
+        // Using a DependencyProperty as the backing store for AutoMove.  This enables animation, styling, binding, etc...
+        public static readonly DependencyProperty AutoMoveProperty =
+            DependencyProperty.Register("AutoMove", typeof(bool), typeof(MainWindow), new PropertyMetadata(!App.IsDebugBuild));
+
+
+
+        private readonly DispatcherTimer _autoMoveDispatcher;
+
         public MainWindow()
         {
             Game = new GameManager();
             BoardView = new BoardViewModel(Game);
+
+            _autoMoveDispatcher = new DispatcherTimer
+            {
+                Interval = new TimeSpan(1),
+            };
+            _autoMoveDispatcher.Tick += AutoMove_Tick;
 
             InitializeComponent();
         }
@@ -52,6 +74,11 @@ namespace Chessie.GUI
 
                 Game.MakeMove(move, promotion);
                 Game.SelectedPiece = null;
+
+                if (AutoMove && Game.IsAITurn)
+                {
+                    _autoMoveDispatcher.Start();
+                }
             }
             else if (e.Coordinate.Index != Game.SelectedPiece)
             {
@@ -60,6 +87,21 @@ namespace Chessie.GUI
 
             Cursor = prevCursor;
         }
+
+        private void AutoMove_Tick(object? sender, EventArgs e)
+        {
+            _autoMoveDispatcher.Stop();
+
+            if (!Game.IsAITurn) return;
+
+            Game.MakeAIMove();
+
+            if (AutoMove && Game.IsAITurn)
+            {
+                _autoMoveDispatcher.Start();
+            }
+        }
+
 
         private void NewGame_Click(object sender, RoutedEventArgs e)
         {
@@ -105,6 +147,24 @@ namespace Chessie.GUI
         private void RefreshBot_Click(object sender, RoutedEventArgs e)
         {
             Game.SetupNextTurn();
+        }
+
+        private BitboardDialog? _bitboardWindow = null;
+        private void ShowBitboards_Click(object sender, RoutedEventArgs e)
+        {
+            if (_bitboardWindow is not null)
+            {
+                _bitboardWindow.Focus();
+                return;
+            }
+
+            _bitboardWindow = new BitboardDialog(Game.Board)
+            {
+                Owner = this,
+            };
+
+            _bitboardWindow.Show();
+            _bitboardWindow.Closed += (_, _) => _bitboardWindow = null;
         }
     }
 }

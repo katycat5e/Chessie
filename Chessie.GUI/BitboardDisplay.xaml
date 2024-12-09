@@ -1,0 +1,69 @@
+﻿<UserControl x:Class="Chessie.GUI.BitboardDisplay"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:Chessie.GUI"
+             xmlns:model="clr-namespace:Chessie.GUI.ViewModels"
+             mc:Ignorable="d" 
+             d:DesignHeight="400" d:DesignWidth="400">
+    <UserControl.Resources>
+        <DataTemplate x:Key="CellTemplate">
+            <Grid>
+                <Grid.Style>
+                    <Style TargetType="Grid">
+                        <Setter Property="Background" Value="LightGray"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding FlagSet}" Value="true">
+                                <Setter Property="Background" Value="LightPink"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Grid.Style>
+
+                <Viewbox Stretch="Uniform">
+                    <Label/>
+                </Viewbox>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="RankTemplate">
+            <ItemsControl ItemsSource="{Binding .}" ItemTemplate="{DynamicResource CellTemplate}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <UniformGrid Rows="1" Columns="8">
+                            <UniformGrid.LayoutTransform>
+                                <ScaleTransform ScaleY="-1"/>
+                            </UniformGrid.LayoutTransform>
+                        </UniformGrid>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+            </ItemsControl>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid DataContext="{Binding RelativeSource={RelativeSource AncestorType=local:BitboardDisplay}}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Viewbox Stretch="Uniform">
+            <ItemsControl ItemTemplate="{DynamicResource RankTemplate}" ItemsSource="{Binding Bits, Mode=OneWay}" 
+                          d:ItemsSource="{d:DesignInstance Type=model:BitboardFilesModel, IsDesignTimeCreatable=True}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <UniformGrid Rows="8" Columns="1">
+                            <UniformGrid.LayoutTransform>
+                                <ScaleTransform ScaleY="-1"/>
+                            </UniformGrid.LayoutTransform>
+                        </UniformGrid>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+            </ItemsControl>
+        </Viewbox>
+
+        <Label Grid.Row="1" HorizontalContentAlignment="Center"
+            Content="{Binding BoardTitle, Mode=OneTime}"/>
+    </Grid>
+</UserControl>

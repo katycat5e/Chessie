@@ -5,16 +5,18 @@ namespace Chessie.Core.Engine
 {
     public static class ChessieBot
     {
-        public static int SearchDepth { get; set; } = 3;
-        public static bool DeterministicSearch { get; set; } =
         #if DEBUG
-            true;
+            const bool DEBUG_MODE = true;
         #else
-            false;
+            const bool DEBUG_MODE = false;
         #endif
 
+        public static int SearchDepth { get; set; } = 3;
+        public static bool DeterministicSearch { get; set; } = DEBUG_MODE;
+        
         public static bool UseMoveOrdering { get; set; } = true;
-        public static bool UseSEE { get; set; } = true;
+        public static bool UseSEE { get; set; } = !DEBUG_MODE;
+        public static bool UseABPruning { get; set; } = true;
 
         const int MAX = 999999;
         const int MIN = -MAX;
@@ -48,9 +50,9 @@ namespace Chessie.Core.Engine
                     }
                 }
 
-                board.ApplyMove(move);
+                board.ApplyMove(move, silent: true);
                 int bestEval = Search(board, SearchDepth, playingAsBlack, MAX, MIN, out string seq);// + Random.Shared.Next(-5, 5);
-                board.UndoLastMove();
+                board.UndoLastMove(true);
                 sortedMoves.Add(new RankedMove(bestEval, move, seq));
             }
 
@@ -114,9 +116,9 @@ namespace Chessie.Core.Engine
                         }
                     }
 
-                    board.ApplyMove(move);
+                    board.ApplyMove(move, silent: true);
                     int bestMoveResult = Search(board, depthLimit - 1, !maximizing, minimumMaximizer, maximumMinimizer, out string nextSeq);
-                    board.UndoLastMove();
+                    board.UndoLastMove(true);
 
                     if (bestMoveResult > bestEval)
                     {
@@ -125,7 +127,7 @@ namespace Chessie.Core.Engine
                         bestSeq = nextSeq;
                     }
 
-                    if (bestEval > minimumMaximizer) break;
+                    if (UseABPruning && bestEval > minimumMaximizer) break;
 
                     maximumMinimizer = Math.Max(maximumMinimizer, bestEval);
                 }
@@ -137,7 +139,7 @@ namespace Chessie.Core.Engine
                 foreach (var move in nextMoves)
                 {
                     // if capture leads to a bad exchange, skip this move
-                    if (move.CapturedPiece != PieceType.Empty)
+                    if (UseSEE && move.CapturedPiece != PieceType.Empty)
                     {
                         int exchangeEval = GetStaticExchangeEvaluation(board, move);
 
@@ -149,9 +151,9 @@ namespace Chessie.Core.Engine
                         }
                     }
 
-                    board.ApplyMove(move);
+                    board.ApplyMove(move, silent: true);
                     int bestMoveResult = Search(board, depthLimit - 1, !maximizing, minimumMaximizer, maximumMinimizer, out string nextSeq);
-                    board.UndoLastMove();
+                    board.UndoLastMove(true);
 
                     if (bestMoveResult < bestEval)
                     {
@@ -160,7 +162,7 @@ namespace Chessie.Core.Engine
                         bestSeq = nextSeq;
                     }
 
-                    if (bestEval < maximumMinimizer) break;
+                    if (UseABPruning && bestEval < maximumMinimizer) break;
 
                     minimumMaximizer = Math.Min(minimumMaximizer, bestEval);
                 }
@@ -202,7 +204,7 @@ namespace Chessie.Core.Engine
         }
 
         const int CHECK_PENALTY = Piece.QUEEN_VALUE * 4;
-        const int MATE_PENALTY = int.MaxValue;
+        const int MATE_PENALTY = MAX - 1;
 
         // returns white's position advantage
         private static int PST_Eval(Board board)
@@ -232,15 +234,15 @@ namespace Chessie.Core.Engine
             int whiteIndex = 0;
             int blackIndex = 0;
 
-            int netMaterial = Piece.SignedValue(move.CapturedPiece);
+            int netMaterial = -Piece.SignedValue(move.CapturedPiece);
             PieceType currentOccupant = move.Piece;
 
             if ((whiteAttackers.Count > 0) && (whiteAttackers[whiteIndex].Location == move.Start)) whiteIndex++;
             if ((blackAttackers.Count > 0) && (blackAttackers[blackIndex].Location == move.Start)) blackIndex++;
 
-            while ((whiteIndex < whiteAttackers.Count) && (blackIndex < blackAttackers.Count))
+            while ((!blackToMove && whiteIndex < whiteAttackers.Count) || (blackToMove && blackIndex < blackAttackers.Count))
             {
-                netMaterial += Piece.SignedValue(currentOccupant);
+                netMaterial -= Piece.SignedValue(currentOccupant);
 
                 if (blackToMove)
                 {

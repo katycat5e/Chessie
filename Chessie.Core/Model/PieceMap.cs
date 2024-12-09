@@ -25,7 +25,7 @@ namespace Chessie.Core.Model
 
         public ulong PieceBitboard { get; private set; }
 
-        private readonly ulong[] _bitBoards = new ulong[N_TYPES];
+        private readonly ulong[] _bitBoards = new ulong[N_TYPES + 1];
 
         public ulong GetBitboard(PieceType type) => _bitBoards[TypeIndex(type)];
 
@@ -67,6 +67,7 @@ namespace Chessie.Core.Model
             if ((piece & PieceType.King) != 0)
             {
                 King = location;
+                SetBitboard(KING_INDEX, location);
                 return;
             }
 
@@ -91,6 +92,8 @@ namespace Chessie.Core.Model
             if ((piece & PieceType.King) != 0)
             {
                 King = destination;
+                UnsetBitboard(KING_INDEX, origin);
+                SetBitboard(KING_INDEX, destination);
                 return;
             }
 
@@ -109,6 +112,7 @@ namespace Chessie.Core.Model
 
             int lastPieceIndex = _pieceCounts[typeIndex] - 1;
             _locations[typeIndex][pieceIndex] = _locations[typeIndex][lastPieceIndex];
+            _locations[typeIndex][lastPieceIndex] = -1;
             _pieceCounts[typeIndex]--;
             _totalCount--;
 
@@ -129,16 +133,18 @@ namespace Chessie.Core.Model
         private const int BISHOP_INDEX = 2;
         private const int ROOK_INDEX = 3;
         private const int QUEEN_INDEX = 4;
+        private const int KING_INDEX = 5;
 
         private static int TypeIndex(PieceType pieceType)
         {
             return (pieceType & PieceType.PieceMask) switch
             {
-                PieceType.Pawn => 0,
-                PieceType.Knight => 1,
-                PieceType.Bishop => 2,
-                PieceType.Rook => 3,
-                PieceType.Queen => 4,
+                PieceType.Pawn => PAWN_INDEX,
+                PieceType.Knight => KNIGHT_INDEX,
+                PieceType.Bishop => BISHOP_INDEX,
+                PieceType.Rook => ROOK_INDEX,
+                PieceType.Queen => QUEEN_INDEX,
+                PieceType.King => KING_INDEX,
                 _ => throw new ArgumentException("Invalid piece"),
             };
         }
@@ -164,6 +170,7 @@ namespace Chessie.Core.Model
             PieceType.Bishop,
             PieceType.Rook,
             PieceType.Queen,
+            PieceType.King,
         };
 
         public IList<LocatedPiece> AllPieces()

@@ -84,12 +84,16 @@ namespace Chessie.Core.Model
         public void Reset()
         {
             Array.Copy(START_STATE, Squares, 64);
+            CastleState = CastleState.All;
+            PlyNumber = 0;
+            EnPassantSquare = null;
+            BlackToMove = false;
 
             WhitePieces.InitFromBoard(Squares);
             BlackPieces.InitFromBoard(Squares);
         }
 
-        public void ApplyMove(Move move, PieceType? promotion = null)
+        public void ApplyMove(Move move, PieceType? promotion = null, bool silent = false)
         {
             Squares[move.Start] = PieceType.Empty;
             var capture = Squares[move.End];
@@ -201,7 +205,7 @@ namespace Chessie.Core.Model
 
             ClearBitboardCache();
 
-            StateChanged?.Invoke();
+            if (!silent) StateChanged?.Invoke();
         }
 
 
@@ -373,7 +377,7 @@ namespace Chessie.Core.Model
 
         #region Undo Stack
 
-        public void UndoLastMove()
+        public void UndoLastMove(bool silent = false)
         {
             var record = _moveHistory.Pop();
 
@@ -389,7 +393,7 @@ namespace Chessie.Core.Model
 
             ClearBitboardCache();
 
-            StateChanged?.Invoke();
+            if (!silent) StateChanged?.Invoke();
         }
 
         private void ExecuteUndoEntry(UndoEntry entry)

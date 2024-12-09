@@ -187,9 +187,10 @@ namespace Chessie.Core.Model
 
         private static IEnumerable<Move> GetValidKingMoves(Board board, LocatedPiece piece)
         {
-            CastleMasks masks = board.BlackToMove ? BlackCastleMasks : WhiteCastleMasks;
+            var isBlackKing = (piece.Piece & PieceType.Black) != 0;
+            CastleMasks masks = isBlackKing ? BlackCastleMasks : WhiteCastleMasks;
 
-            var bitboards = board.GetBitboards(board.BlackToMove);
+            var bitboards = board.GetBitboards(isBlackKing);
 
             // kingside castle
             if (((board.CastleState & masks.KingsideStateMask) != CastleState.None) && ((bitboards.Threats & masks.KingsideThreatMask) == 0))
@@ -213,16 +214,16 @@ namespace Chessie.Core.Model
 
             foreach (var move in AllVectors)
             {
-                if (!(new SquareCoord(piece.Location) + move).IsValidSquare)
+                var dest = new SquareCoord(piece.Location) + move;
+                if (!dest.IsValidSquare)
                 {
                     continue;
                 }
 
-                int dest = piece.Location + move.DeltaIndex;
                 var target = board[dest];
                 if (target == PieceType.Empty || piece.Piece.IsOpponentPiece(target))
                 {
-                    yield return new Move(piece.Piece, target, piece.Location, dest);
+                    yield return new Move(piece.Piece, target, piece.Location, dest.Index);
                 }
             }
         }
@@ -263,9 +264,9 @@ namespace Chessie.Core.Model
 
         private static bool DoesMoveCauseCheck(Board board, Move move, bool forBlack)
         {
-            board.ApplyMove(move);
+            board.ApplyMove(move, silent: true);
             bool isCheck = IsCheck(board, forBlack, out _);
-            board.UndoLastMove();
+            board.UndoLastMove(true);
             return isCheck;
         }
 

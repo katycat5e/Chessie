@@ -129,7 +129,7 @@ namespace Chessie.GUI.ViewModels
             }
         }
 
-        public bool IsAITurn => _aiMoves != null;
+        public bool IsAITurn => BlackToMove ? BlackIsCPU : WhiteIsCPU;
 
         private bool _isAIThinking = false;
 
@@ -251,20 +251,13 @@ namespace Chessie.GUI.ViewModels
         public void SetupNextTurn()
         {
             // setup AI moves
-            bool isAITurn = BlackToMove ? BlackIsCPU : WhiteIsCPU;
-
-            if (isAITurn)
+            if (IsAITurn)
             {
                 _isAIThinking = true;
                 AllowUIToUpdate();
                 AIMoves = ChessieBot.RankPotentialMoves(Board);
                 AIThinkDuration = $"({ChessieBot.LastThinkDuration:f2} s), ({ChessieBot.StatesEvaluated} nodes)";
                 _isAIThinking = false;
-            }
-            else
-            {
-                AIMoves = null;
-                AIThinkDuration = string.Empty;
             }
         }
 
