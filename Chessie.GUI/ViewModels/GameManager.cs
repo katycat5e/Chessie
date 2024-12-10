@@ -73,6 +73,10 @@ namespace Chessie.GUI.ViewModels
                 {
                     return BlackToMove ? "White Wins by Checkmate" : "Black Wins by Checkmate";
                 }
+                else if (Stalemate)
+                {
+                    return "Game Ends in Stalemate";
+                }
                 return BlackToMove ? "Black to Move" : "White to Move";
             }
         }
@@ -103,6 +107,7 @@ namespace Chessie.GUI.ViewModels
 
         public int? CheckLocation { get; private set; }
         public bool CheckMate { get; private set; }
+        public bool Stalemate { get; private set; }
 
         public MoveDictionary HumanMoves { get; } = new MoveDictionary();
 
@@ -258,6 +263,20 @@ namespace Chessie.GUI.ViewModels
                 AIMoves = ChessieBot.RankPotentialMoves(Board);
                 AIThinkDuration = $"({ChessieBot.LastThinkDuration:f2} s), ({ChessieBot.StatesEvaluated} nodes)";
                 _isAIThinking = false;
+
+                if (AIMoves.Count == 0)
+                {
+                    if (BoardCalculator.IsCheck(Board, BlackToMove, out int? checkLoc) && BoardCalculator.IsMate(Board, BlackToMove))
+                    {
+                        CheckLocation = checkLoc;
+                        CheckMate = true;
+                    }
+                    else
+                    {
+                        CheckMate = false;
+                        Stalemate = true;
+                    }
+                }
             }
         }
 
