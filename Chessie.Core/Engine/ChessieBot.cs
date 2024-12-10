@@ -50,7 +50,14 @@ namespace Chessie.Core.Engine
                     }
                 }
 
-                board.ApplyMove(move, silent: true);
+                PieceType? promotion = null;
+                if (BoardCalculator.IsPromotion(move.Piece, move.End))
+                {
+                    var color = move.Piece & PieceType.ColorMask;
+                    promotion = PieceType.Queen | color;
+                }
+
+                board.ApplyMove(move, promotion, true);
                 int bestEval = Search(board, SearchDepth, playingAsBlack, MAX, MIN, out string seq);// + Random.Shared.Next(-5, 5);
                 board.UndoLastMove(true);
                 sortedMoves.Add(new RankedMove(bestEval, move, seq));
@@ -116,7 +123,14 @@ namespace Chessie.Core.Engine
                         }
                     }
 
-                    board.ApplyMove(move, silent: true);
+                    PieceType? promotion = null;
+                    if (BoardCalculator.IsPromotion(move.Piece, move.End))
+                    {
+                        var color = move.Piece & PieceType.ColorMask;
+                        promotion = PieceType.Queen | color;
+                    }
+
+                    board.ApplyMove(move, promotion, true);
                     int bestMoveResult = Search(board, depthLimit - 1, !maximizing, minimumMaximizer, maximumMinimizer, out string nextSeq);
                     board.UndoLastMove(true);
 
@@ -151,7 +165,14 @@ namespace Chessie.Core.Engine
                         }
                     }
 
-                    board.ApplyMove(move, silent: true);
+                    PieceType? promotion = null;
+                    if (BoardCalculator.IsPromotion(move.Piece, move.End))
+                    {
+                        var color = move.Piece & PieceType.ColorMask;
+                        promotion = PieceType.Queen | color;
+                    }
+
+                    board.ApplyMove(move, promotion, true);
                     int bestMoveResult = Search(board, depthLimit - 1, !maximizing, minimumMaximizer, maximumMinimizer, out string nextSeq);
                     board.UndoLastMove(true);
 

@@ -75,7 +75,7 @@ namespace Chessie.GUI
                 Game.MakeMove(move, promotion);
                 Game.SelectedPiece = null;
 
-                if (AutoMove && Game.IsAITurn)
+                if (AutoMove && Game.IsAITurn && !(Game.CheckMate || Game.Stalemate))
                 {
                     _autoMoveDispatcher.Start();
                 }
