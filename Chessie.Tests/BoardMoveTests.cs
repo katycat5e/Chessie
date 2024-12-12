@@ -102,6 +102,8 @@ namespace Chessie.Tests
 
             Assert.AreEqual(expected.WhitePieces, actual.WhitePieces, "White piece maps differ");
             Assert.AreEqual(expected.BlackPieces, actual.BlackPieces, "Black piece maps differ");
+
+            Assert.AreEqual(expected.ZobristHash, actual.ZobristHash, "Zobrist hashes differ");
         }
     }
 }

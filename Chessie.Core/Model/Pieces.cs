@@ -6,20 +6,20 @@ using System.Threading.Tasks;
 
 namespace Chessie.Core.Model
 {
-    [Flags]
     public enum PieceType : byte
     {
         Empty = 0,
 
         Pawn = 1,
         Knight = 2,
-        Bishop = 4,
-        Rook = 8,
-        Queen = 16,
-        King = 32,
+        Bishop = 3,
+        Rook = 4,
+        Queen = 5,
+        King = 6,
+        // Unused = 7,
 
-        White = 64,
-        Black = 128,
+        White = 8,
+        Black = 16,
 
         PieceMask = Pawn | Knight | Bishop | Rook | Queen | King,
         BlackPieceMask = Black | PieceMask,
@@ -182,5 +182,42 @@ namespace Chessie.Core.Model
                 _ => 0,
             };
         }
+
+        public const int NON_KING_TYPES = 5;
+        public const int ALL_TYPES = 6;
+
+        public const int PAWN_INDEX = 0;
+        public const int KNIGHT_INDEX = 1;
+        public const int BISHOP_INDEX = 2;
+        public const int ROOK_INDEX = 3;
+        public const int QUEEN_INDEX = 4;
+        public const int KING_INDEX = 5;
+
+        public static int TypeIndex(PieceType pieceType)
+        {
+            return (pieceType & PieceType.PieceMask) switch
+            {
+                PieceType.Pawn => PAWN_INDEX,
+                PieceType.Knight => KNIGHT_INDEX,
+                PieceType.Bishop => BISHOP_INDEX,
+                PieceType.Rook => ROOK_INDEX,
+                PieceType.Queen => QUEEN_INDEX,
+                PieceType.King => KING_INDEX,
+                _ => throw new ArgumentException("Invalid piece"),
+            };
+        }
+
+
+        private static readonly PieceType[] _types =
+        {
+            PieceType.Pawn,
+            PieceType.Knight,
+            PieceType.Bishop,
+            PieceType.Rook,
+            PieceType.Queen,
+            PieceType.King,
+        };
+
+        public static PieceType TypeFromIndex(int index) => _types[index];
     }
 }

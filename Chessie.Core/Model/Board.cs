@@ -29,6 +29,8 @@ namespace Chessie.Core.Model
         }
         
 
+        public ulong ZobristHash { get; private set; }
+
         public CastleState CastleState { get; private set; }
         public int PlyNumber { get; private set; }
         public int? EnPassantSquare { get; private set; }
@@ -56,6 +58,8 @@ namespace Chessie.Core.Model
 
             WhitePieces.InitFromBoard(Squares);
             BlackPieces.InitFromBoard(Squares);
+
+            ZobristHash = Zobrist.GetHash(this);
         }
 
         public Board(PieceType[] squares, CastleState castleState, int plyNumber, int? enPassantSquare, bool blackToMove)
@@ -71,6 +75,8 @@ namespace Chessie.Core.Model
 
             WhitePieces.InitFromBoard(Squares);
             BlackPieces.InitFromBoard(Squares);
+
+            ZobristHash = Zobrist.GetHash(this);
         }
 
         public Board Clone()
@@ -91,6 +97,8 @@ namespace Chessie.Core.Model
 
             WhitePieces.InitFromBoard(Squares);
             BlackPieces.InitFromBoard(Squares);
+
+            ZobristHash = Zobrist.GetHash(this);
         }
 
         public void ApplyMove(Move move, PieceType? promotion = null, bool silent = false)
@@ -153,12 +161,12 @@ namespace Chessie.Core.Model
 
             // castling flags
             var oldCastleState = CastleState;
-            if ((move.Piece & PieceType.King) != 0)
+            if ((move.Piece & PieceType.PieceMask) == PieceType.King)
             {
                 CastleState mask = BlackToMove ? CastleState.AllBlack : CastleState.AllWhite;
                 CastleState &= ~mask;
             }
-            else if ((move.Piece & PieceType.Rook) != 0)
+            else if ((move.Piece & PieceType.PieceMask) == PieceType.Rook)
             {
                 if (move.Start == WKRookStart)
                 {
@@ -177,7 +185,7 @@ namespace Chessie.Core.Model
                     CastleState &= ~CastleState.BlackQueenside;
                 }
             }
-            else if((capture & PieceType.Rook) != 0)
+            else if((capture & PieceType.PieceMask) == PieceType.Rook)
             {
                 if (move.End == WKRookStart)
                 {
@@ -204,6 +212,8 @@ namespace Chessie.Core.Model
             _moveHistory.Push(undoEntry);
 
             ClearBitboardCache();
+
+            ZobristHash = Zobrist.ApplyMove(ZobristHash, move, oldCastleState, CastleState, oldPassantSquare, EnPassantSquare, promotion);
 
             if (!silent) StateChanged?.Invoke();
         }
@@ -381,6 +391,8 @@ namespace Chessie.Core.Model
         {
             var record = _moveHistory.Pop();
 
+            ZobristHash = Zobrist.UndoMove(ZobristHash, record, CastleState, EnPassantSquare);
+
             if (record.Tertiary.HasValue) ExecuteUndoEntry(record.Tertiary.Value);
             if (record.Secondary.HasValue) ExecuteUndoEntry(record.Secondary.Value);
             ExecuteUndoEntry(record.Primary);
@@ -423,7 +435,7 @@ namespace Chessie.Core.Model
         }
 
 
-        private readonly struct UndoRecord
+        public readonly struct UndoRecord
         {
             public readonly CastleState PrevCastleState;
             public readonly int? PrevPassantSquare;
@@ -441,7 +453,7 @@ namespace Chessie.Core.Model
             }
         }
 
-        private readonly struct UndoEntry
+        public readonly struct UndoEntry
         {
             public readonly UndoEntryType Type;
             public readonly PieceType Piece;
@@ -476,7 +488,7 @@ namespace Chessie.Core.Model
             }
         }
 
-        private enum UndoEntryType
+        public enum UndoEntryType
         {
             Moved,
             Captured,
@@ -537,14 +549,14 @@ namespace Chessie.Core.Model
 
             // castling
             SquareCoord? rook = null;
-            if (((toMove & PieceType.King) != 0) && (deltaFile == 2))
+            if (((toMove & PieceType.PieceMask) == PieceType.King) && (deltaFile == 2))
             {
                 int rookOffset = (endFile > startFile) ? BoardCalculator.KINGSIDE_ROOK_OFFSET : BoardCalculator.QUEENSIDE_ROOK_OFFSET;
                 rook = new(startRank, startFile + rookOffset);
             }
 
             // en passant
-            bool enPassant = ((toMove & PieceType.Pawn) != 0) && (deltaFile == 1) && (target == PieceType.Empty);
+            bool enPassant = ((toMove & PieceType.PieceMask) == PieceType.Pawn) && (deltaFile == 1) && (target == PieceType.Empty);
 
             return new Move(toMove, target,
                 new SquareCoord(startRank, startFile), new SquareCoord(endRank, endFile),
@@ -581,5 +593,17 @@ namespace Chessie.Core.Model
             Threats = threats;
             KingThreats = kingThreats;
         }
+    }
+
+    public enum Square
+    {
+        a1, b1, c1, d1, e1, f1, g1, h1,
+        a2, b2, c2, d2, e2, f2, g2, h2,
+        a3, b3, c3, d3, e3, f3, g3, h3,
+        a4, b4, c4, d4, e4, f4, g4, h4,
+        a5, b5, c5, d5, e5, f5, g5, h5,
+        a6, b6, c6, d6, e6, f6, g6, h6,
+        a7, b7, c7, d7, e7, f7, g7, h7,
+        a8, b8, c8, d8, e8, f8, g8, h8,
     }
 }

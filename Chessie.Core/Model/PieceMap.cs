@@ -13,26 +13,25 @@ namespace Chessie.Core.Model
             = false;
         #endif
 
-        const int N_TYPES = 5;
         const int MAX_PIECES = 8;
 
         public readonly PieceType Color;
-        private readonly int[][] _locations = new int[N_TYPES][];
-        private readonly int[] _pieceCounts = new int[N_TYPES];
+        private readonly int[][] _locations = new int[Piece.NON_KING_TYPES][];
+        private readonly int[] _pieceCounts = new int[Piece.NON_KING_TYPES];
         private int _totalCount = 1;
 
         public int King { get; private set; }
 
         public ulong PieceBitboard { get; private set; }
 
-        private readonly ulong[] _bitBoards = new ulong[N_TYPES + 1];
+        private readonly ulong[] _bitBoards = new ulong[Piece.NON_KING_TYPES + 1];
 
-        public ulong GetBitboard(PieceType type) => _bitBoards[TypeIndex(type)];
+        public ulong GetBitboard(PieceType type) => _bitBoards[Piece.TypeIndex(type)];
 
         public PieceMap(PieceType color)
         {
             Color = color;
-            for (int i = 0; i < N_TYPES; i++)
+            for (int i = 0; i < Piece.NON_KING_TYPES; i++)
             {
                 _locations[i] = new int[MAX_PIECES];
             }
@@ -41,7 +40,7 @@ namespace Chessie.Core.Model
         public PieceMap(PieceType[] squares, PieceType color)
         {
             Color = color;
-            for (int i = 0; i < N_TYPES; i++)
+            for (int i = 0; i < Piece.NON_KING_TYPES; i++)
             {
                 _locations[i] = new int[MAX_PIECES];
             }
@@ -64,14 +63,14 @@ namespace Chessie.Core.Model
 
         public void AddPiece(PieceType piece, int location)
         {
-            if ((piece & PieceType.King) != 0)
+            if ((piece & PieceType.PieceMask) == PieceType.King)
             {
                 King = location;
-                SetBitboard(KING_INDEX, location);
+                SetBitboard(Piece.KING_INDEX, location);
                 return;
             }
 
-            int index = TypeIndex(piece);
+            int index = Piece.TypeIndex(piece);
             if (_pieceCounts[index] == MAX_PIECES)
             {
                 throw new IndexOutOfRangeException("Too many pieces of type " + piece.ToString());
@@ -89,15 +88,15 @@ namespace Chessie.Core.Model
 
         public void MovePiece(PieceType piece, int origin, int destination)
         {
-            if ((piece & PieceType.King) != 0)
+            if ((piece & PieceType.PieceMask) == PieceType.King)
             {
                 King = destination;
-                UnsetBitboard(KING_INDEX, origin);
-                SetBitboard(KING_INDEX, destination);
+                UnsetBitboard(Piece.KING_INDEX, origin);
+                SetBitboard(Piece.KING_INDEX, destination);
                 return;
             }
 
-            int typeIndex = TypeIndex(piece);
+            int typeIndex = Piece.TypeIndex(piece);
             int pieceIndex = PieceIndex(typeIndex, origin);
             _locations[typeIndex][pieceIndex] = destination;
 
@@ -107,7 +106,7 @@ namespace Chessie.Core.Model
 
         public void RemovePiece(PieceType piece, int location)
         {
-            int typeIndex = TypeIndex(piece);
+            int typeIndex = Piece.TypeIndex(piece);
             int pieceIndex = PieceIndex(typeIndex, location);
 
             int lastPieceIndex = _pieceCounts[typeIndex] - 1;
@@ -128,27 +127,6 @@ namespace Chessie.Core.Model
             throw new ArgumentException("piece not found");
         }
 
-        private const int PAWN_INDEX = 0;
-        private const int KNIGHT_INDEX = 1;
-        private const int BISHOP_INDEX = 2;
-        private const int ROOK_INDEX = 3;
-        private const int QUEEN_INDEX = 4;
-        private const int KING_INDEX = 5;
-
-        private static int TypeIndex(PieceType pieceType)
-        {
-            return (pieceType & PieceType.PieceMask) switch
-            {
-                PieceType.Pawn => PAWN_INDEX,
-                PieceType.Knight => KNIGHT_INDEX,
-                PieceType.Bishop => BISHOP_INDEX,
-                PieceType.Rook => ROOK_INDEX,
-                PieceType.Queen => QUEEN_INDEX,
-                PieceType.King => KING_INDEX,
-                _ => throw new ArgumentException("Invalid piece"),
-            };
-        }
-
         private void SetBitboard(int pieceTypeIndex, int location)
         {
             ulong mask = 1ul << location;
@@ -163,24 +141,14 @@ namespace Chessie.Core.Model
             _bitBoards[pieceTypeIndex] &= ~mask;
         }
 
-        private static readonly PieceType[] _types =
-        {
-            PieceType.Pawn,
-            PieceType.Knight,
-            PieceType.Bishop,
-            PieceType.Rook,
-            PieceType.Queen,
-            PieceType.King,
-        };
-
         public IList<LocatedPiece> AllPieces()
         {
             var result = new LocatedPiece[_totalCount];
             int index = 0;
 
-            for (int typeIdx = 0; typeIdx < N_TYPES; typeIdx++)
+            for (int typeIdx = 0; typeIdx < Piece.NON_KING_TYPES; typeIdx++)
             {
-                var type = _types[typeIdx] | Color;
+                var type = Piece.TypeFromIndex(typeIdx) | Color;
 
                 for (int i = 0; i < _pieceCounts[typeIdx]; i++)
                 {
@@ -203,7 +171,7 @@ namespace Chessie.Core.Model
             int pawnDir = Color == PieceType.Black ? -1 : 1;
 
             var leftCapture = target - new MoveVector(pawnDir, -1);
-            if (leftCapture.IsValidSquare && ((_bitBoards[PAWN_INDEX] & leftCapture.BitboardMask) != 0))
+            if (leftCapture.IsValidSquare && ((_bitBoards[Piece.PAWN_INDEX] & leftCapture.BitboardMask) != 0))
             {
                 if (leftCapture.Index != ignorePieceIndex)
                 {
@@ -212,7 +180,7 @@ namespace Chessie.Core.Model
             }
 
             var rightCapture = target - new MoveVector(pawnDir, 1);
-            if (rightCapture.IsValidSquare && ((_bitBoards[PAWN_INDEX] & rightCapture.BitboardMask) != 0))
+            if (rightCapture.IsValidSquare && ((_bitBoards[Piece.PAWN_INDEX] & rightCapture.BitboardMask) != 0))
             {
                 if (rightCapture.Index != ignorePieceIndex)
                 {
@@ -224,7 +192,7 @@ namespace Chessie.Core.Model
             foreach (var move in BoardCalculator.KnightMoves)
             {
                 var attackSquare = target - move;
-                if (attackSquare.IsValidSquare && ((_bitBoards[KNIGHT_INDEX] & attackSquare.BitboardMask) != 0))
+                if (attackSquare.IsValidSquare && ((_bitBoards[Piece.KNIGHT_INDEX] & attackSquare.BitboardMask) != 0))
                 {
                     if (attackSquare.Index != ignorePieceIndex)
                     {
@@ -252,13 +220,13 @@ namespace Chessie.Core.Model
                     if (diagonal)
                     {
                         // bishop
-                        if (((_bitBoards[BISHOP_INDEX] & attackSquare.BitboardMask) != 0) && (attackSquare.Index != ignorePieceIndex))
+                        if (((_bitBoards[Piece.BISHOP_INDEX] & attackSquare.BitboardMask) != 0) && (attackSquare.Index != ignorePieceIndex))
                         {
                             result.Add(new(PieceType.Bishop | Color, attackSquare.Index));
                             break;
                         }
                         // queen
-                        else if (((_bitBoards[QUEEN_INDEX] & attackSquare.BitboardMask) != 0) && (attackSquare.Index != ignorePieceIndex))
+                        else if (((_bitBoards[Piece.QUEEN_INDEX] & attackSquare.BitboardMask) != 0) && (attackSquare.Index != ignorePieceIndex))
                         {
                             result.Add(new(PieceType.Queen | Color, attackSquare.Index));
                             break;
@@ -267,7 +235,7 @@ namespace Chessie.Core.Model
                     else
                     {
                         // rook
-                        if (((_bitBoards[ROOK_INDEX] & attackSquare.BitboardMask) != 0) && (attackSquare.Index != ignorePieceIndex))
+                        if (((_bitBoards[Piece.ROOK_INDEX] & attackSquare.BitboardMask) != 0) && (attackSquare.Index != ignorePieceIndex))
                         {
                             result.Add(new(PieceType.Rook | Color, attackSquare.Index));
                             break;

@@ -295,7 +295,7 @@ namespace Chessie.Core.Model
         public static bool IsPromotion(PieceType piece, int destination)
         {
             int rank = destination >> 3;
-            return ((piece & PieceType.Pawn) != 0) && (rank == SquareCoord.MIN_RANK || rank == SquareCoord.MAX_RANK);
+            return ((piece & PieceType.PieceMask) == PieceType.Pawn) && (rank == SquareCoord.MIN_RANK || rank == SquareCoord.MAX_RANK);
         }
     }
 }
