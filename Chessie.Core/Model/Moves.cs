@@ -5,6 +5,7 @@ namespace Chessie.Core.Model
 {
     public readonly struct Move
     {
+        public static Move Null { get; } = new();
         private const int FILES_PER_RANK = 8;
 
         public readonly PieceType Piece;
@@ -81,6 +82,16 @@ namespace Chessie.Core.Model
         public override int GetHashCode()
         {
             return HashCode.Combine(Piece, Start, End);
+        }
+
+        public static bool operator ==(Move left, Move right)
+        {
+            return (left.Piece == right.Piece) && (left.Start == right.Start) && (left.End == right.End);
+        }
+
+        public static bool operator !=(Move left, Move right)
+        {
+            return (left.Piece != right.Piece) || (left.Start != right.Start) || (left.End != right.End);
         }
     }
 

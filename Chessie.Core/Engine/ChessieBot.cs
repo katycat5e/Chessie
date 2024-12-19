@@ -24,6 +24,13 @@ namespace Chessie.Core.Engine
         public static float LastThinkDuration { get; private set; }
         public static int StatesEvaluated { get; private set; }
 
+        private static TranspositionTable _transpositions = new();
+
+        public static void Reset()
+        {
+            _transpositions.Clear();
+        }
+
         public static List<RankedMove> RankPotentialMoves(Board board)
         {
             StatesEvaluated = 0;
@@ -86,13 +93,23 @@ namespace Chessie.Core.Engine
             return sortedMoves;
         }
 
-        private static int Search(Board board, int depthLimit, bool maximizing, int minimumMaximizer, int maximumMinimizer, out string moveSeq)
+        private static int Search(Board board, int depthLimit, bool maximizing, int minimumWhite, int maximumBlack, out string moveSeq)
         {
             if (depthLimit == 0)
             {
                 StatesEvaluated++;
                 moveSeq = string.Empty;
                 return Evaluate(board);
+            }
+
+            if (_transpositions.TryGetValue(board.ZobristHash, out var ttEntry))
+            {
+                // already searched this position to same or greater depth
+                if (ttEntry.SearchDepth >= depthLimit)
+                {
+                    moveSeq = "[TT]" + ttEntry.BestMove.ToString();
+                    return ttEntry.Evaluation;
+                }
             }
 
             //int best = MIN;
@@ -103,6 +120,8 @@ namespace Chessie.Core.Engine
             int bestEval;
             Move bestMove = new();
             string bestSeq = string.Empty;
+            bool alphaCutoff = false;
+            bool betaCutoff = false;
 
             if (maximizing)
             {
@@ -131,7 +150,7 @@ namespace Chessie.Core.Engine
                     }
 
                     board.ApplyMove(move, promotion, true);
-                    int bestMoveResult = Search(board, depthLimit - 1, !maximizing, minimumMaximizer, maximumMinimizer, out string nextSeq);
+                    int bestMoveResult = Search(board, depthLimit - 1, !maximizing, minimumWhite, maximumBlack, out string nextSeq);
                     board.UndoLastMove(true);
 
                     if (bestMoveResult > bestEval)
@@ -141,9 +160,14 @@ namespace Chessie.Core.Engine
                         bestSeq = nextSeq;
                     }
 
-                    if (UseABPruning && bestEval > minimumMaximizer) break;
+                    if (UseABPruning && bestEval > minimumWhite)
+                    {
+                        // move too good, black won't allow it
 
-                    maximumMinimizer = Math.Max(maximumMinimizer, bestEval);
+                        break;
+                    }
+
+                    maximumBlack = Math.Max(maximumBlack, bestEval);
                 }
             }
             else
@@ -173,7 +197,7 @@ namespace Chessie.Core.Engine
                     }
 
                     board.ApplyMove(move, promotion, true);
-                    int bestMoveResult = Search(board, depthLimit - 1, !maximizing, minimumMaximizer, maximumMinimizer, out string nextSeq);
+                    int bestMoveResult = Search(board, depthLimit - 1, !maximizing, minimumWhite, maximumBlack, out string nextSeq);
                     board.UndoLastMove(true);
 
                     if (bestMoveResult < bestEval)
@@ -183,9 +207,9 @@ namespace Chessie.Core.Engine
                         bestSeq = nextSeq;
                     }
 
-                    if (UseABPruning && bestEval < maximumMinimizer) break;
+                    if (UseABPruning && bestEval < maximumBlack) break;
 
-                    minimumMaximizer = Math.Min(minimumMaximizer, bestEval);
+                    minimumWhite = Math.Min(minimumWhite, bestEval);
                 }
             }
 
